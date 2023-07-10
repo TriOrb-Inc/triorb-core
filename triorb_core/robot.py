@@ -130,7 +130,16 @@ class robot:
             return val.to_bytes()
         if isinstance(val, TriOrbDrive3Vector):
             return val.to_bytes()
-        
+        """
+        if isinstance(val, np.float32):
+            return struct.pack('<f', val)
+        if isinstance(val, np.uint32):
+            return val.to_bytes(4, UART_ENDIAN)
+        if isinstance(val, np.uint16):
+            return val.to_bytes(2, UART_ENDIAN)
+        if isinstance(val, np.uint8):
+            return val.to_bytes(1, UART_ENDIAN)
+        """
         logger.error(type(val))
         raise Exception("Unknown type")
     
@@ -161,7 +170,9 @@ class robot:
         return _tx_bytes
 
     def rx(self):
-        self._expected_response_values = []
+        #self._expected_response_values = []
+        data = self._uart.readline()
+        return self._expected_response_values
 
     def wakeup(self):
         logger.debug("Wakeup")
@@ -178,25 +189,139 @@ class robot:
 
     def brake(self):
         logger.debug("brake")
+        td3p = RobotValueTypes[RobotCodes.MOVING_SPEED_ABSOLUTE](0,0,0)
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.MOVING_SPEED_ABSOLUTE, td3p ]])))
+        return self.rx()
 
-    def get_pos(self):
+    def get_pos(self): ## how to get?
         logger.debug("get_pos")
+        #logger.debug(self.byteList_to_string(self.tx([[RobotCodes., 0x00]])))
+        return self.rx()
 
-    def read_config(self):
+    def read_config(self, params=["acc", "dec", "std-vel"]):
         logger.debug("read_config")
+        if isinstance(params, str):
+            params = [params]
+        elif not isinstance(params, list):
+            logger.warning("Please provide the params in list format.")
+            
+        dicts = {p:0x6FFFFFFF for p in params} #irregular value for read mode
+        return self.write_config(dicts)
 
-    def write_config(self):
+    def write_config(self, params={"acc":1.0, "dec":1.0, "std-vel":0.5}):
         logger.debug("write_config")
+        if not isinstance(params, dict):
+            logger.warning("Please provide the params in dict format.")
+
+        command = []
+        for k,v in params.items():
+            if k == "acc":
+                command.append( [RobotCodes.STANDARD_ACCELERATION_TIME, RobotValueTypes[RobotCodes.STANDARD_ACCELERATION_TIME](v*1000)] )
+            elif k == "dec":
+                command.append( [RobotCodes.STANDARD_DECELERATION_TIME, RobotValueTypes[RobotCodes.STANDARD_DECELERATION_TIME](v*1000)] ) 
+            elif k == "std-vel":
+                command.append( [RobotCodes.STANDARD_HORIZONTAL_SPEED, RobotValueTypes[RobotCodes.STANDARD_HORIZONTAL_SPEED](v)] ) 
+                command.append( [RobotCodes.STANDARD_ROTATION_SPEED,   RobotValueTypes[RobotCodes.STANDARD_ROTATION_SPEED](v)]   ) 
+            else:
+                print(k,"is not configure value.")
+                continue
+        if len(command)>0:
+            logger.debug(self.byteList_to_string(self.tx( command )))
+            return self.rx()
+        else:
+            return False
 
     def set_pos_absolute(self, x, y, w):
         logger.debug("set_pos_absolute")
+        td3p = RobotValueTypes[RobotCodes.TARGET_POSITION_ABSOLUTE](x,y,w)
+        logger.debug(self.byteList_to_string(self.tx([[ RobotCodes.TARGET_POSITION_ABSOLUTE, td3p ]])))
+        return self.rx()
 
     def set_pos_relative(self, x, y, w):
         logger.debug("set_pos_relative")
+        td3p = RobotValueTypes[RobotCodes.TARGET_POSITION_RELATIVE](x,y,w)
+        logger.debug(self.byteList_to_string(self.tx([[ RobotCodes.TARGET_POSITION_RELATIVE, td3p ]])))
+        return self.rx()
     
     def set_vel_absolute(self, x, y, w):
         logger.debug("set_vel_absolute")
+        td3p = RobotValueTypes[RobotCodes.MOVING_SPEED_ABSOLUTE](x,y,w)
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.MOVING_SPEED_ABSOLUTE, td3p ]])))
+        return self.rx()
 
     def set_vel_relative(self, x, y, w):
         logger.debug("set_vel_relative")
+        td3p = RobotValueTypes[RobotCodes.MOVING_SPEED_RELATIVE](x,y,w)
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.MOVING_SPEED_RELATIVE, td3p ]])))
+        return self.rx()
     
+
+
+
+    def get_info(self):
+        logger.debug("get_info")
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.SYSTEM_INFORMATION, 0x00]])))
+        return self.rx()
+
+    def get_device_status(self):
+        logger.debug("get_device_status")
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.DEVICE_STATUS, 0x00]])))
+        return self.rx()
+
+    def get_sensor_info(self):
+        logger.debug("get_sensor_info")
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.SENSOR_INFORMATION, 0x00]])))
+        return self.rx()
+
+    def get_error_info(self):
+        logger.debug("get_error_info")
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.ERROR_INFORMATION, 0x00]])))
+        return self.rx()
+
+    def get_operating_status(self):
+        logger.debug("get_operating_status")
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.OPERATING_STATUS, 0x00]])))
+        return self.rx()
+
+    def get_voltage(self):
+        logger.debug("get_voltage")
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.POWER_SUPPLY_VOLTAGE, 0x00]])))
+        return self.rx()
+
+    def get_power(self):
+        logger.debug("get_power")
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.DRIVING_POWER, 0x00]])))
+        return self.rx()
+
+    def reset_error(self):
+        logger.debug("reset_error")
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.ERROR_RESET, 0x01]])))
+
+    def reset_origin(self):
+        logger.debug("reset_origin")
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.ORIGIN_RESET, 0x01]])))
+
+
+    def operating_mode(self, param=0x03):
+        logger.debug("operating_mode")
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.OPERATING_MODE, param]])))
+        return self.rx()
+
+    def set_acceleration_time(self, x,y,w): # each acc time should be same value?
+        logger.debug("set_acceleration_time")
+        td3p = RobotValueTypes[RobotCodes.ACCELERATION_TIME](x,y,w)
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.ACCELERATION_TIME, td3p ]])))
+        return self.rx()
+
+    def set_deceleration_time(self, x,y,w): # each dec time should be same value?
+        logger.debug("set_deceleration_time")
+        td3p = RobotValueTypes[RobotCodes.DECELERATION_TIME](x,y,w)
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.DECELERATION_TIME, td3p ]])))
+        return self.rx()
+
+    def set_torque(self, param):
+        logger.debug("set_torque")
+        val = RobotValueTypes[RobotCodes.DRIVING_TORQUE](param*1000)
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.DRIVING_TORQUE, val ]])))
+        return self.rx()
+
