@@ -93,7 +93,7 @@ class robot:
             port = self.find_port()
         if port is None:
             raise Exception("Please set UART port path/name")
-        self._uart = serial.Serial(
+        self._uart= serial.Serial(
                                     port=port,
                                     baudrate=UART_BAUDRATE,
                                     bytesize=UART_BYTESIZE,
@@ -103,8 +103,8 @@ class robot:
                                     write_timeout=UART_TIMEOUT,
                                     rtscts=UART_FLOW,
                                    )
+
         self._expected_response_values = []
-        pass
     
     @property
     def codes(self):
@@ -130,16 +130,14 @@ class robot:
             return val.to_bytes()
         if isinstance(val, TriOrbDrive3Vector):
             return val.to_bytes()
-        """
+        if isinstance(val, np.uint32):
+            return int(val).to_bytes(4, UART_ENDIAN)
         if isinstance(val, np.float32):
             return struct.pack('<f', val)
-        if isinstance(val, np.uint32):
-            return val.to_bytes(4, UART_ENDIAN)
-        if isinstance(val, np.uint16):
-            return val.to_bytes(2, UART_ENDIAN)
-        if isinstance(val, np.uint8):
-            return val.to_bytes(1, UART_ENDIAN)
-        """
+        #if isinstance(val, np.uint16):
+        #    return val.to_bytes(2, UART_ENDIAN)
+        #if isinstance(val, np.uint8):
+        #    return val.to_bytes(1, UART_ENDIAN)
         logger.error(type(val))
         raise Exception("Unknown type")
     
@@ -171,8 +169,19 @@ class robot:
 
     def rx(self):
         #self._expected_response_values = []
-        data = self._uart.readline()
-        return self._expected_response_values
+        buf = []
+        s = ""
+        while(True):
+            r = self._uart.read(1)
+            if r==b"":
+                self._uart.write(b"send")
+                break
+            buf.append(r)
+            s += r.decode("utf8")
+        self._expected_response_values = []
+        if s!="":
+            print( s )
+        return buf
 
     def wakeup(self):
         logger.debug("Wakeup")
@@ -205,7 +214,7 @@ class robot:
         elif not isinstance(params, list):
             logger.warning("Please provide the params in list format.")
             
-        dicts = {p:0x6FFFFFFF for p in params} #irregular value for read mode
+        dicts = {p:0x7FFFFFFF/1000 for p in params} #irregular value for read mode
         return self.write_config(dicts)
 
     def write_config(self, params={"acc":1.0, "dec":1.0, "std-vel":0.5}):
@@ -307,15 +316,15 @@ class robot:
         logger.debug(self.byteList_to_string(self.tx([[RobotCodes.OPERATING_MODE, param]])))
         return self.rx()
 
-    def set_acceleration_time(self, x,y,w): # each acc time should be same value?
+    def set_acceleration_time(self, param): # each acc time should be same value?
         logger.debug("set_acceleration_time")
-        td3p = RobotValueTypes[RobotCodes.ACCELERATION_TIME](x,y,w)
+        td3p = RobotValueTypes[RobotCodes.ACCELERATION_TIME](param,param,param)
         logger.debug(self.byteList_to_string(self.tx([[RobotCodes.ACCELERATION_TIME, td3p ]])))
         return self.rx()
 
-    def set_deceleration_time(self, x,y,w): # each dec time should be same value?
+    def set_deceleration_time(self, param): # each dec time should be same value?
         logger.debug("set_deceleration_time")
-        td3p = RobotValueTypes[RobotCodes.DECELERATION_TIME](x,y,w)
+        td3p = RobotValueTypes[RobotCodes.DECELERATION_TIME](param,param,param)
         logger.debug(self.byteList_to_string(self.tx([[RobotCodes.DECELERATION_TIME, td3p ]])))
         return self.rx()
 
