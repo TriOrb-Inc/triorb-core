@@ -33,22 +33,59 @@ class TriOrbBaseSystem:
 class TriOrbBaseDevice:
     age: int = 0
     weight: int = 0
+    def to_bytes(self) -> bytes:
+        return struct.pack('<ii', self.age, self.weight)
+    def from_bytes(self, arr):
+        self.age, self.weight = struct.unpack("<ii", arr)
 
 @dataclass
 class TriOrbBaseSensor:
     age: int = 0
     weight: int = 0
-    
+    def to_bytes(self) -> bytes:
+        return struct.pack('<ii', self.age, self.weight)
+    def from_bytes(self, arr):
+        self.age, self.weight = struct.unpack("<ii", arr)
+
 @dataclass
 class TriOrbBaseError:
-    age: int = 0
-    weight: int = 0
+    alarm: np.uint8 = 0
+    motor_id: np.uint8 = 0
+    def to_bytes(self) -> bytes:
+        return struct.pack('<bb', self.alarm, self.motor_id)
+    def from_bytes(self, arr):
+        self.alarm, self.motor_id = struct.unpack("<bb", arr)
     
 @dataclass
 class TriOrbBaseState:
-    age: int = 0
-    weight: int = 0
+    #state: np.uint32 = 0
+    volt_l: bool = 0
+    volt_h: bool = 0
+    watt:   bool = 0
+    trq:    bool = 0
+    move:   bool = 0
+    in_pos: bool = 0
+    s_on:   bool = 0
+    karioki:bool = 0
+    motor_id: np.uint8 = 0
+    def to_bytes(self) -> bytes:
+        #return struct.pack('<ib', self.state, self.motor_id)
+        hb =  self.volt_l<<7 + self.volt_h<<6 + self.watt<<5 + self.trq<<4 \
+             +self.move<<3 + self.in_pos<<2 + self.s_on<<1 + self.karioki
+        return hb.to_bytes() + self.motor_id.to_bytes()
+    def from_bytes(self, arr):
+        state, self.motor_id = struct.unpack("<bb", arr)
+        self.volt_l = (state & 0b00000001) >> 0
+        self.volt_h = (state & 0b00000010) >> 1
+        self.watt   = (state & 0b00000100) >> 2
+        self.trq    = (state & 0b00001000) >> 3
+        self.move   = (state & 0b00010000) >> 4
+        self.in_pos = (state & 0b00100000) >> 5
+        self.s_on   = (state & 0b01000000) >> 6
+        self.karioki= (state & 0b10000000) >> 7
+        #print(state)
     
+
 @dataclass
 class TriOrbDrive3Pose:
     x: np.float32 = 0.0
