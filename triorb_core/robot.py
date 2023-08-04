@@ -49,6 +49,7 @@ class RobotCodes(Enum):
     OPERATING_STATUS = 0x0009
     POWER_SUPPLY_VOLTAGE = 0x0109
     DRIVING_POWER = 0x010B
+    GET_POSE = 0x010D
     ERROR_RESET = 0x0201
     ORIGIN_RESET = 0x0203
     STARTUP_SUSPENSION = 0x0301
@@ -65,6 +66,9 @@ class RobotCodes(Enum):
     DECELERATION_TIME = 0x0317
     DRIVING_TORQUE = 0x0319
 
+
+    KINEMATICS_TRANS = 0xFF04
+
 class RobotValues(Enum):
     ROBOT_SUSPENSION = 0x01 # 停止（励磁OFF）
     ROBOT_STARTUP = 0x02 # 起動（励磁ON）
@@ -77,6 +81,7 @@ RobotValueTypes = {
     RobotCodes.OPERATING_STATUS: TriOrbBaseState,
     RobotCodes.POWER_SUPPLY_VOLTAGE: np.float32,
     RobotCodes.DRIVING_POWER: np.float32,
+    RobotCodes.GET_POSE: TriOrbDrive3Pose,
     RobotCodes.ERROR_RESET: np.uint8,
     RobotCodes.ORIGIN_RESET: np.uint8,
     RobotCodes.STARTUP_SUSPENSION: np.uint8,
@@ -92,6 +97,8 @@ RobotValueTypes = {
     RobotCodes.ACCELERATION_TIME: TriOrbDrive3Vector,
     RobotCodes.DECELERATION_TIME: TriOrbDrive3Vector,
     RobotCodes.DRIVING_TORQUE: np.uint16,
+
+    RobotCodes.KINEMATICS_TRANS: TriOrbDriveMatrix,
 }
 
 class robot:
@@ -136,6 +143,8 @@ class robot:
             return val.to_bytes()
         if isinstance(val, TriOrbDrive3Vector):
             return val.to_bytes()
+        if isinstance(val, TriOrbDriveMatrix):
+            return val.to_bytes()
         if isinstance(val, TriOrbBaseSystem):
             return val.to_bytes()
         if isinstance(val, TriOrbBaseDevice):
@@ -164,6 +173,11 @@ class robot:
 
     @staticmethod
     def from_bytes(val, code):
+        if code==RobotCodes.KINEMATICS_TRANS:
+            dtype = RobotValueTypes[code](np.zeros((3,3),dtype=np.float32))
+            dtype.from_bytes(val)
+            return dtype
+
         dtype = RobotValueTypes[code]()
         if isinstance(dtype, RobotCodes):
             return val.value.from_bytes(2, UART_ENDIAN)
@@ -198,6 +212,8 @@ class robot:
             return struct.unpack('<H', val)[0]
         if isinstance(dtype, np.float32):
             return struct.unpack('<f', val)[0]
+        if isinstance(dtype, np.uint8):
+            return val[0]
         #if isinstance(val, np.uint16):
         #    return val.to_bytes(2, UART_ENDIAN)
         #if isinstance(val, np.uint8):
@@ -222,7 +238,7 @@ class robot:
                 logger.debug("Since it's only a communication code, I will add value=0x00.")
                 code_value = [code_value, 0x00]
             _code, _value = code_value
-            _code_bytes = self.to_bytes(_code)
+            _code_bytes = _code if isinstance(_code, bytes) else self.to_bytes(_code)
             _value_bytes = _value if isinstance(_value, bytes) else self.to_bytes(_value)
             _tx_bytes.extend(_code_bytes)
             _tx_bytes.extend(_value_bytes)
@@ -231,7 +247,7 @@ class robot:
         _tx_bytes.extend([0x0d, 0x0a])
         _send_binary = bytes(_tx_bytes)
         self._uart.write(_send_binary)
-        logger.debug(_send_binary)
+        logger.debug( "Send: {}".format(_send_binary) )
         return _tx_bytes
 
 
@@ -245,6 +261,11 @@ class robot:
             if buf[-2]==0x0d: # たまたま改行コードと同じ値が送られた場合を防ぐ. ただし, たまたま0x0d0aとなる値が送られてきた場合はどうしようもない
                 break
 
+        if len(buf)==3:
+            print("[ERROR] Send wrong packet")
+            return buf
+
+        # 元々送受信でパケットの長さが異なることがあるように設計していたので以下のものを使用していたときの名残.  もういらないかも
         expected_buf_length = sum( self._expected_response_size ) + len(self._expected_response_size)*2 + len([0x00, 0x0d, 0x0a])
         with_not_readable_code = (expected_buf_length != len(buf)) # 期待通りの長さのコードが帰ってきているか
 
@@ -255,12 +276,15 @@ class robot:
         i=0
         for _ in range(len(buf)):
             code = self._expected_response_values[code_index]
+            if isinstance(code, bytes):
+                c = struct.unpack("<H",code)[0]
+                code = RobotCodes(c)
             clen = self._expected_response_size[code_index]
             if i>len(buf):
                 break
 
             if code.value == int.from_bytes( buf[i:i+2], UART_ENDIAN ):
-                if with_not_readable_code: # readモードとwriteモードのコマンドが同時に送られていた場合, 期待通りの返答にならないので条件分岐
+                if with_not_readable_code:
                     next_bytes = int.from_bytes( buf[i+2:i+4], UART_ENDIAN )
                     if  next_bytes == 0x0a0d:
                         break
@@ -280,8 +304,20 @@ class robot:
         print("\r", end="")
         return values
     
+    def rx_bytes(self):
+        buf = b""
+        while(True):
+            buf += self._uart.readline() # 0x0aまで読み込み
+            if len(buf)<2:
+                print(".", end="")
+                continue
+            if buf[-2]==0x0d: # たまたま改行コードと同じ値が送られた場合を防ぐ. ただし, たまたま0x0d0aとなる値が送られてきた場合はどうしようもない
+                break
+        return buf
+
     def clear_rx(self):
-        return self._uart.readline() # 0x0aまで読み込み
+        self._uart.reset_output_buffer()
+        self._uart.reset_input_buffer()
 
     def wakeup(self):
         logger.debug("Wakeup")
@@ -295,10 +331,16 @@ class robot:
 
     def join(self):
         logger.debug("join")
-        is_wait = True
-        while(is_wait):
-            data = self.get_operating_status(_id=DRIVE_MOTOR_LOCAL_IDS)
-            is_wait = ( data[0].move or data[1].move or data[2].move )
+        time.sleep(3.0) # 早くに送信するとモーターのmoveフラグが立つ前のクエリが帰ってくるのでsleep
+        while(True): # 定期的に状態取得用のクエリを送る
+            #data = self.get_operating_status(_id=DRIVE_MOTOR_LOCAL_IDS)
+            data = self.get_motor_status(params=["state"] ,_id=DRIVE_MOTOR_LOCAL_IDS)
+            # 全てのmoveが0になるまでループ. 本来ならin_posを使いたいが, 時間経過でoffになるので信頼性が低い
+            if ( data[0].in_pos and data[1].in_pos and data[2].in_pos ):
+                break
+            if data[0].success:
+                if not ( data[0].move or data[1].move or data[2].move ):
+                    break
             time.sleep(0.5)
         print("move end")
 
@@ -310,10 +352,11 @@ class robot:
 
     def get_pos(self): ## how to get? not implemented
         logger.debug("get_pos")
-        #logger.debug(self.byteList_to_string(self.tx([[RobotCodes., 0x00]])))
+        val = RobotValueTypes[RobotCodes.GET_POSE]()
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.GET_POSE, val]])))
         return self.rx()
 
-    def read_config(self, params=["acc", "dec", "std-vel"]):
+    def read_config(self, params=["acc", "dec", "std-vel", "torque"]):
         logger.debug("read_config")
         if isinstance(params, str):
             params = [params]
@@ -322,11 +365,16 @@ class robot:
             
         dicts = {p:0x7FFFFFFF for p in params} #irregular value for read mode
         values = self.write_config(dicts)
+
         for i in range(len(params)):
+            if params[i]=="std-vel": # 水平速度と回転速度両方が帰ってくるので除く
+                values.pop(i)
             print( params[i], ":", values[i] )
         return values
 
-    def write_config(self, params={"acc":1000, "dec":1000, "std-vel":0.5}):
+    # 指定していない値が勝手に変わるのはまずいので初期値無し
+    #def write_config(self, params={"acc":1000, "dec":1000, "std-vel":0.5, "torque":1000}):
+    def write_config(self, params):
         logger.debug("write_config")
         if not isinstance(params, dict):
             logger.warning("Please provide the params in dict format.")
@@ -339,7 +387,12 @@ class robot:
                 command.append( [RobotCodes.STANDARD_DECELERATION_TIME, RobotValueTypes[RobotCodes.STANDARD_DECELERATION_TIME](v)] ) 
             elif k == "std-vel":
                 command.append( [RobotCodes.STANDARD_HORIZONTAL_SPEED, RobotValueTypes[RobotCodes.STANDARD_HORIZONTAL_SPEED](v)] ) 
-                command.append( [RobotCodes.STANDARD_ROTATION_SPEED,   RobotValueTypes[RobotCodes.STANDARD_ROTATION_SPEED](v)]   ) 
+                command.append( [RobotCodes.STANDARD_ROTATION_SPEED,   RobotValueTypes[RobotCodes.STANDARD_ROTATION_SPEED](v)] ) 
+            elif k == "torque":
+                command.append( [RobotCodes.DRIVING_TORQUE,   RobotValueTypes[RobotCodes.DRIVING_TORQUE](v)]   ) 
+
+            elif k == "kin-trans":
+                command.append( [RobotCodes.KINEMATICS_TRANS,   RobotValueTypes[RobotCodes.KINEMATICS_TRANS](v)]   ) 
             else:
                 print(k,"is not configure value.")
         if len(command)>0:
@@ -353,52 +406,52 @@ class robot:
         td3p = RobotValueTypes[RobotCodes.TARGET_POSITION_ABSOLUTE](x,y,w)
         query = [[ RobotCodes.TARGET_POSITION_ABSOLUTE, td3p ]]
         if acc is not None:
-            acc = RobotValueTypes[RobotCodes.ACCELERATION_TIME](param,param,param)
+            acc = RobotValueTypes[RobotCodes.ACCELERATION_TIME](acc,acc,acc)
             query.append([RobotCodes.ACCELERATION_TIME, acc ])
         if dec is not None:
-            dec = RobotValueTypes[RobotCodes.DECELERATION_TIME](param,param,param)
+            dec = RobotValueTypes[RobotCodes.DECELERATION_TIME](dec,dec,dec)
             query.append([RobotCodes.DECELERATION_TIME, dec ])
         logger.debug(self.byteList_to_string(self.tx(query)))
-        return self.rx()[0]
+        return self.rx()
 
     def set_pos_relative(self, x, y, w, acc=None, dec=None): # read mode not implemented
         logger.debug("set_pos_relative")
         td3p = RobotValueTypes[RobotCodes.TARGET_POSITION_RELATIVE](x,y,w)
         query = [[ RobotCodes.TARGET_POSITION_RELATIVE, td3p ]]
         if acc is not None:
-            acc = RobotValueTypes[RobotCodes.ACCELERATION_TIME](param,param,param)
+            acc = RobotValueTypes[RobotCodes.ACCELERATION_TIME](acc,acc,acc)
             query.append([ RobotCodes.ACCELERATION_TIME, acc ])
         if dec is not None:
-            dec = RobotValueTypes[RobotCodes.DECELERATION_TIME](param,param,param)
+            dec = RobotValueTypes[RobotCodes.DECELERATION_TIME](dec,dec,dec)
             query.append([ RobotCodes.DECELERATION_TIME, dec ])
         logger.debug(self.byteList_to_string(self.tx(query)))
-        return self.rx()[0]
+        return self.rx()
     
     def set_vel_absolute(self, x, y, w, acc=None, dec=None): # read mode not implemented
         logger.debug("set_vel_absolute")
         td3p = RobotValueTypes[RobotCodes.MOVING_SPEED_ABSOLUTE](x,y,w)
         query = [[ RobotCodes.MOVING_SPEED_ABSOLUTE, td3p ]]
         if acc is not None:
-            acc = RobotValueTypes[RobotCodes.ACCELERATION_TIME](param,param,param)
+            acc = RobotValueTypes[RobotCodes.ACCELERATION_TIME](acc,acc,acc)
             query.append([RobotCodes.ACCELERATION_TIME, acc])
         if dec is not None:
-            dec = RobotValueTypes[RobotCodes.DECELERATION_TIME](param,param,param)
+            dec = RobotValueTypes[RobotCodes.DECELERATION_TIME](dec,dec,dec)
             query.append([RobotCodes.DECELERATION_TIME, dec])
         logger.debug(self.byteList_to_string(self.tx(query)))
-        return self.rx()[0]
+        return self.rx()
 
     def set_vel_relative(self, x, y, w, acc=None, dec=None):
         logger.debug("set_vel_relative")
         td3p = RobotValueTypes[RobotCodes.MOVING_SPEED_RELATIVE](x,y,w)
         query = [[ RobotCodes.MOVING_SPEED_RELATIVE, td3p ]]
         if acc is not None:
-            acc = RobotValueTypes[RobotCodes.ACCELERATION_TIME](param,param,param)
+            acc = RobotValueTypes[RobotCodes.ACCELERATION_TIME](acc,acc,acc)
             query.append([RobotCodes.ACCELERATION_TIME, acc])
         if dec is not None:
-            dec = RobotValueTypes[RobotCodes.DECELERATION_TIME](param,param,param)
+            dec = RobotValueTypes[RobotCodes.DECELERATION_TIME](dec,dec,dec)
             query.append([RobotCodes.DECELERATION_TIME, dec])
         logger.debug(self.byteList_to_string(self.tx(query)))
-        return self.rx()[0]
+        return self.rx()
 
 
 
@@ -424,77 +477,103 @@ class robot:
         return values[0]
 
     
-    # 共通処理なのでまとめた
-    def _get_motor_status(self, _id, code):
+
+
+    def get_motor_status(self, params=["error","state","voltage","power"], _id=ALL_MOTOR_LOCAL_IDS):
         if not isinstance(_id, list):
             _id = [_id]
+        if  isinstance(params, str):
+            params = [params]
+        code_dicts = {"error":RobotCodes.ERROR_INFORMATION,
+                      "state":RobotCodes.OPERATING_STATUS,
+                      "voltage":RobotCodes.POWER_SUPPLY_VOLTAGE,
+                      "power":RobotCodes.DRIVING_POWER}
         query = []
-        for i in _id:
-            if i in ALL_MOTOR_LOCAL_IDS:
-                query.append( [code, RobotValueTypes[code](motor_id=i)] )
-            else:
-                print("motor ID %d is not existing" % i)
+        for pm in params:
+            code = code_dicts[pm]
+            val = RobotValueTypes[code](0)
+            val = self.to_bytes( val )
+            for i in _id:
+                if i in ALL_MOTOR_LOCAL_IDS:
+                    v = val[:-1] + int(i).to_bytes() # 最後の1バイトでIDを指定
+                    query.append( [code, v] )
+                else:
+                    print("motor ID %d is not existing" % i)
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
 
 
-    def get_error_info(self, _id=ALL_MOTOR_LOCAL_IDS):
-        logger.debug("get_error_info")
-        code = RobotCodes.ERROR_INFORMATION
-        values = self._get_motor_status(_id, code)
-        for i in range(len(_id)):
-            val = "正常" if values[i].alarm==0 else get_alarm_name( values[i].alarm )
-            print("ID{}: {}".format(_id[i], val))
-        return values
-
-    def get_operating_status(self, _id=ALL_MOTOR_LOCAL_IDS):
-        logger.debug("get_operating_status")
-        code = RobotCodes.OPERATING_STATUS
-        values = self._get_motor_status(_id, code)
-        print_str =  "ID| 移動中 | 位置制御終了 | 励磁状態 |\n"
-        for i in range(len(_id)):
-            val = values[i]
-            print_str+="{:02}| 　 {}　 | 　　　　 {}　 | 　　 {}　 |\n".format(val.motor_id, val.move, val.in_pos, val.s_on)
-        print(print_str)
-        return values
-        #return print_str
-
-    def get_voltage(self, _id=ALL_MOTOR_LOCAL_IDS):
-        logger.debug("get_voltage")
-        code = RobotCodes.POWER_SUPPLY_VOLTAGE
-        if not isinstance(_id, list):
-            _id = [_id]
-        query = []
-        for i in _id:
-            if i in ALL_MOTOR_LOCAL_IDS:
-                val = b'\x00\x00\x00' + int(i).to_bytes()
-                query.append( [code, val] )
-            else:
-                print("motor ID %d is not existing" % i)
-        logger.debug(self.byteList_to_string(self.tx(query)))
-        values = self.rx()
-        for i in range(len(_id)):
-            print("ID{}: {} V".format(_id[i], values[i]) )
-        return values
+    #def _get_motor_status(self, _id, code):
+    #    if not isinstance(_id, list):
+    #        _id = [_id]
+    #    query = []
+    #    for i in _id:
+    #        if i in ALL_MOTOR_LOCAL_IDS:
+    #            query.append( [code, RobotValueTypes[code](motor_id=i)] )
+    #        else:
+    #            print("motor ID %d is not existing" % i)
+    #    logger.debug(self.byteList_to_string(self.tx(query)))
+    #    return self.rx()
 
 
-    def get_power(self, _id=ALL_MOTOR_LOCAL_IDS):
-        logger.debug("get_power")
-        code = RobotCodes.DRIVING_POWER
-        if not isinstance(_id, list):
-            _id = [_id]
-        query = []
-        for i in _id:
-            if i in ALL_MOTOR_LOCAL_IDS:
-                val = b'\x00\x00\x00' + int(i).to_bytes()
-                query.append( [code, val] )
-            else:
-                print("motor ID %d is not existing" % i)
-        logger.debug(self.byteList_to_string(self.tx(query)))
-        values = self.rx()
-        for i in range(len(_id)):
-            print("ID{}: {} W".format(_id[i], values[i]) )
-        return values
+    #def get_error_info(self, _id=ALL_MOTOR_LOCAL_IDS):
+    #    logger.debug("get_error_info")
+    #    code = RobotCodes.ERROR_INFORMATION
+    #    values = self._get_motor_status(_id, code)
+    #    for i in range(len(_id)):
+    #        val = "正常" if values[i].alarm==0 else get_alarm_name( values[i].alarm )
+    #        print("ID{}: {}".format(_id[i], val))
+    #    return values
+
+    #def get_operating_status(self, _id=ALL_MOTOR_LOCAL_IDS):
+    #    logger.debug("get_operating_status")
+    #    code = RobotCodes.OPERATING_STATUS
+    #    values = self._get_motor_status(_id, code)
+    #    print_str =  "ID| 移動中 | 位置制御終了 | 励磁状態 |\n"
+    #    for i in range(len(_id)):
+    #        val = values[i]
+    #        print_str+="{:02}| 　 {}　 | 　　　　 {}　 | 　　 {}　 |\n".format(val.motor_id, val.move, val.in_pos, val.s_on)
+    #    print(print_str)
+    #    return values
+    #    #return print_str
+
+    #def get_voltage(self, _id=ALL_MOTOR_LOCAL_IDS):
+    #    logger.debug("get_voltage")
+    #    code = RobotCodes.POWER_SUPPLY_VOLTAGE
+    #    if not isinstance(_id, list):
+    #        _id = [_id]
+    #    query = []
+    #    for i in _id:
+    #        if i in ALL_MOTOR_LOCAL_IDS:
+    #            val = b'\x00\x00\x00' + int(i).to_bytes()
+    #            query.append( [code, val] )
+    #        else:
+    #            print("motor ID %d is not existing" % i)
+    #    logger.debug(self.byteList_to_string(self.tx(query)))
+    #    values = self.rx()
+    #    for i in range(len(_id)):
+    #        print("ID{}: {} V".format(_id[i], values[i]) )
+    #    return values
+
+
+    #def get_power(self, _id=ALL_MOTOR_LOCAL_IDS):
+    #    logger.debug("get_power")
+    #    code = RobotCodes.DRIVING_POWER
+    #    if not isinstance(_id, list):
+    #        _id = [_id]
+    #    query = []
+    #    for i in _id:
+    #        if i in ALL_MOTOR_LOCAL_IDS:
+    #            val = b'\x00\x00\x00' + int(i).to_bytes()
+    #            query.append( [code, val] )
+    #        else:
+    #            print("motor ID %d is not existing" % i)
+    #    logger.debug(self.byteList_to_string(self.tx(query)))
+    #    values = self.rx()
+    #    for i in range(len(_id)):
+    #        print("ID{}: {} W".format(_id[i], values[i]) )
+    #    return values
+    
 
     def reset_error(self):
         logger.debug("reset_error")
@@ -524,10 +603,14 @@ class robot:
         logger.debug(self.byteList_to_string(self.tx([[RobotCodes.DECELERATION_TIME, td3p ]])))
         return self.rx()
 
-    def set_torque(self, param):
-        logger.debug("set_torque")
-        code = RobotCodes.DRIVING_TORQUE
-        val = RobotValueTypes[code](param)
-        logger.debug(self.byteList_to_string(self.tx([[code, val ]])))
-        return self.rx()[0]
+    #def set_torque(self, param):
+    #    logger.debug("set_torque")
+    #    code = RobotCodes.DRIVING_TORQUE
+    #    val = RobotValueTypes[code](param)
+    #    logger.debug(self.byteList_to_string(self.tx([[code, val ]])))
+    #    return self.rx()[0]
+
+
+    def __del__(self):
+        self.sleep()
 

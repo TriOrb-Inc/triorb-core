@@ -10,7 +10,7 @@ def get_alarm_name(code):
         + ["電磁ブレーキ過電流",  False, False, "HWTO入力回路異常", False, "電磁ブレーキ接続異常"] + [False for i in range(10)] \
         + ["±LS同時入力", "±LS逆接続", "原点復帰運転異常", "HOMES未検出", "Z, SLIT信号異常", False, "ハードウェアオーバートラベル", "ソフトウェアオーバートラベル", "HWTO入力検出", False, "原点復帰追加運転異常", False, False, False, "ユーザーアラーム", False] \
         + ["運転データ異常", "単位設定異常"] + [False for i in range(14)] \
-        + [False, "ネットワークパス異常", False, False, "RS-485通信異常", "RS-485通信タイムアウト", False, False, False, False, False, False, "設定範囲外"] 
+        + [False, "ネットワークパス異常", False, False, "RS-485通信異常", "RS-485通信タイムアウト", False, False, False, False, False, False, "読込み失敗"] 
  
     if code<8*16+13:
         return alarm_list[code]
