@@ -391,6 +391,8 @@ class robot:
                 command.append( [RobotCodes.STANDARD_HORIZONTAL_SPEED, RobotValueTypes[RobotCodes.STANDARD_HORIZONTAL_SPEED](v)] ) 
             elif k == "std-rot":
                 command.append( [RobotCodes.STANDARD_ROTATION_SPEED,   RobotValueTypes[RobotCodes.STANDARD_ROTATION_SPEED](v)] ) 
+            elif k == "torque":
+                command.append( [RobotCodes.DRIVING_TORQUE,   RobotValueTypes[RobotCodes.DRIVING_TORQUE](v)]   ) 
 
             else:
                 print(k,"is not configure value.")
