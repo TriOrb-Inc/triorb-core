@@ -41,6 +41,7 @@ DRIVE_MOTOR_LOCAL_IDS = [1,2,3]
 LIFTER_MOTOR_LOCAL_IDS = [4,5,6,7]
 ALL_MOTOR_LOCAL_IDS = DRIVE_MOTOR_LOCAL_IDS# + LIFTER_MOTOR_LOCAL_IDS
 
+
 class RobotCodes(Enum):
     SYSTEM_INFORMATION = 0x0001
     DEVICE_STATUS = 0x0003
@@ -65,8 +66,10 @@ class RobotCodes(Enum):
     ACCELERATION_TIME = 0x0315
     DECELERATION_TIME = 0x0317
     DRIVING_TORQUE = 0x0319
+    INITIALIZE_CONFIG = 0x031B
 
 
+    KINEMATICS = 0xFF02
     KINEMATICS_TRANS = 0xFF04
 
 class RobotValues(Enum):
@@ -97,11 +100,15 @@ RobotValueTypes = {
     RobotCodes.ACCELERATION_TIME: TriOrbDrive3Vector,
     RobotCodes.DECELERATION_TIME: TriOrbDrive3Vector,
     RobotCodes.DRIVING_TORQUE: np.uint16,
+    RobotCodes.INITIALIZE_CONFIG: np.uint8,
 
+    RobotCodes.KINEMATICS: TriOrbDriveMatrix,
     RobotCodes.KINEMATICS_TRANS: TriOrbDriveMatrix,
 }
 
 class robot:
+
+
     def __init__(self, port=None):
         if port is None:
             port = self.find_port()
@@ -173,7 +180,7 @@ class robot:
 
     @staticmethod
     def from_bytes(val, code):
-        if code==RobotCodes.KINEMATICS_TRANS:
+        if code==RobotCodes.KINEMATICS or code==RobotCodes.KINEMATICS_TRANS:
             dtype = RobotValueTypes[code](np.zeros((3,3),dtype=np.float32))
             dtype.from_bytes(val)
             return dtype
@@ -252,11 +259,15 @@ class robot:
 
 
     def rx(self):
+        expected_buf_length = sum( self._expected_response_size ) + len(self._expected_response_size)*2 + len([0x00, 0x0d, 0x0a])
+
         buf = b""
         while(True):
             buf += self._uart.readline() # 0x0aまで読み込み
             if len(buf)<2:
-                print(".", end="")
+                print("Now Loading.", end="\r")
+                continue
+            if len(buf)<expected_buf_length:
                 continue
             if buf[-2]==0x0d: # たまたま改行コードと同じ値が送られた場合を防ぐ. ただし, たまたま0x0d0aとなる値が送られてきた場合はどうしようもない
                 break
@@ -265,8 +276,6 @@ class robot:
             print("[ERROR] Send wrong packet")
             return buf
 
-        # 元々送受信でパケットの長さが異なることがあるように設計していたので以下のものを使用していたときの名残.  もういらないかも
-        expected_buf_length = sum( self._expected_response_size ) + len(self._expected_response_size)*2 + len([0x00, 0x0d, 0x0a])
         with_not_readable_code = (expected_buf_length != len(buf)) # 期待通りの長さのコードが帰ってきているか
 
         logger.debug("Response: {}".format(buf) )
@@ -318,6 +327,13 @@ class robot:
     def clear_rx(self):
         self._uart.reset_output_buffer()
         self._uart.reset_input_buffer()
+        print("remain rx -> ", end="")
+        while(True):
+            buf = self._uart.read()
+            if buf==b"":
+                break
+            print(buf, end="")
+        print()
 
     def wakeup(self):
         logger.debug("Wakeup")
@@ -327,7 +343,8 @@ class robot:
     def sleep(self):
         logger.debug("Sleep")
         logger.debug(self.byteList_to_string(self.tx([[RobotCodes.STARTUP_SUSPENSION, RobotValues.ROBOT_SUSPENSION]])))
-        return self.rx()
+        return self.clear_rx()
+        #return self.rx()
 
     def join(self):
         logger.debug("join")
@@ -341,7 +358,7 @@ class robot:
             if data[0].success:
                 if not ( data[0].move or data[1].move or data[2].move ):
                     break
-            time.sleep(0.5)
+            time.sleep(1.0)
         print("move end")
 
     def brake(self):
@@ -356,20 +373,30 @@ class robot:
         logger.debug(self.byteList_to_string(self.tx([[RobotCodes.GET_POSE, val]])))
         return self.rx()
 
-    def read_config(self, params=["acc", "dec", "std-vel", "torque"]):
+    def read_config(self, params=["acc", "std-vel", "std-rot"]):
         logger.debug("read_config")
         if isinstance(params, str):
             params = [params]
         elif not isinstance(params, list):
             logger.warning("Please provide the params in list format.")
             
-        dicts = {p:0x7FFFFFFF for p in params} #irregular value for read mode
-        values = self.write_config(dicts)
+        params = {p:0x7FFFFFFF for p in params} #irregular value for read mode
+        command = []
+        for k,v in params.items():
+            if k == "acc":
+                command.append( [RobotCodes.STANDARD_ACCELERATION_TIME, RobotValueTypes[RobotCodes.STANDARD_ACCELERATION_TIME](v)] )
+            elif k == "dec":
+                command.append( [RobotCodes.STANDARD_DECELERATION_TIME, RobotValueTypes[RobotCodes.STANDARD_DECELERATION_TIME](v)] ) 
+            elif k == "std-vel":
+                command.append( [RobotCodes.STANDARD_HORIZONTAL_SPEED, RobotValueTypes[RobotCodes.STANDARD_HORIZONTAL_SPEED](v)] ) 
+            elif k == "std-rot":
+                command.append( [RobotCodes.STANDARD_ROTATION_SPEED,   RobotValueTypes[RobotCodes.STANDARD_ROTATION_SPEED](v)] ) 
 
-        for i in range(len(params)):
-            if params[i]=="std-vel": # 水平速度と回転速度両方が帰ってくるので除く
-                values.pop(i)
-            print( params[i], ":", values[i] )
+            else:
+                print(k,"is not configure value.")
+        if len(command)>0:
+            logger.debug(self.byteList_to_string(self.tx( command )))
+            return self.rx()
         return values
 
     # 指定していない値が勝手に変わるのはまずいので初期値無し
@@ -387,19 +414,32 @@ class robot:
                 command.append( [RobotCodes.STANDARD_DECELERATION_TIME, RobotValueTypes[RobotCodes.STANDARD_DECELERATION_TIME](v)] ) 
             elif k == "std-vel":
                 command.append( [RobotCodes.STANDARD_HORIZONTAL_SPEED, RobotValueTypes[RobotCodes.STANDARD_HORIZONTAL_SPEED](v)] ) 
-                command.append( [RobotCodes.STANDARD_ROTATION_SPEED,   RobotValueTypes[RobotCodes.STANDARD_ROTATION_SPEED](v)] ) 
+                #command.append( [RobotCodes.STANDARD_ROTATION_SPEED,   RobotValueTypes[RobotCodes.STANDARD_ROTATION_SPEED](v)] ) 
             elif k == "torque":
                 command.append( [RobotCodes.DRIVING_TORQUE,   RobotValueTypes[RobotCodes.DRIVING_TORQUE](v)]   ) 
+            elif k == "std-rot":
+                command.append( [RobotCodes.STANDARD_ROTATION_SPEED,   RobotValueTypes[RobotCodes.STANDARD_ROTATION_SPEED](v)] ) 
 
-            elif k == "kin-trans":
-                command.append( [RobotCodes.KINEMATICS_TRANS,   RobotValueTypes[RobotCodes.KINEMATICS_TRANS](v)]   ) 
             else:
                 print(k,"is not configure value.")
         if len(command)>0:
             logger.debug(self.byteList_to_string(self.tx( command )))
-            return self.rx()
+            ret = self.rx()
+            #print("Write done. Please reboot robot.")
+            #return True
+            return ret
         else:
             return False
+
+    def initialize_config(self):
+        logger.debug("initialize_config")
+        command = [ [RobotCodes.INITIALIZE_CONFIG, 0x00] ]
+        logger.debug(self.byteList_to_string(self.tx( command )))
+        self.clear_rx()
+        print("Write done. Please reboot robot.")
+        return True
+        #return self.rx()
+
 
     def set_pos_absolute(self, x, y, w, acc=None, dec=None): # read mode not implemented
         logger.debug("set_pos_absolute")
@@ -495,7 +535,7 @@ class robot:
             val = self.to_bytes( val )
             for i in _id:
                 if i in ALL_MOTOR_LOCAL_IDS:
-                    v = val[:-1] + int(i).to_bytes() # 最後の1バイトでIDを指定
+                    v = val[:-1] + int(i).to_bytes(1, UART_ENDIAN) # 最後の1バイトでIDを指定
                     query.append( [code, v] )
                 else:
                     print("motor ID %d is not existing" % i)
