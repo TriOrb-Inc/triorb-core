@@ -268,7 +268,10 @@ class robot:
                 print("Now Loading.", end="\r")
                 continue
             if len(buf)<expected_buf_length:
-                continue
+                b = self._uart.read()
+                if len(b)>0:
+                    buf += b
+                    continue
             if buf[-2]==0x0d: # たまたま改行コードと同じ値が送られた場合を防ぐ. ただし, たまたま0x0d0aとなる値が送られてきた場合はどうしようもない
                 break
 
@@ -469,9 +472,9 @@ class robot:
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
     
-    def set_vel_absolute(self, x, y, w, acc=None, dec=None): # read mode not implemented
+    def set_vel_absolute(self, vx, vy, vw, acc=None, dec=None): # read mode not implemented
         logger.debug("set_vel_absolute")
-        td3p = RobotValueTypes[RobotCodes.MOVING_SPEED_ABSOLUTE](x,y,w)
+        td3p = RobotValueTypes[RobotCodes.MOVING_SPEED_ABSOLUTE](vx,vy,vw)
         query = [[ RobotCodes.MOVING_SPEED_ABSOLUTE, td3p ]]
         if acc is not None:
             acc = RobotValueTypes[RobotCodes.ACCELERATION_TIME](acc,acc,acc)
