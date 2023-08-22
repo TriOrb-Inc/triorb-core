@@ -26,7 +26,7 @@ def sample3(port):
 
     vehicle.set_pos_relative(x=1.0, y=0, w=0, acc=3000, dec=2000) # 加速時間を3秒、減速時間を2秒に設定しロボットをローカル座標系の位置x=1.0[m] の姿勢を取ります。 
     vehicle.join() 
-    print(vehicle.set_pos_relative(x=360001, y=0, w=0)) # 無効値を入力した場合、前回の指示値を取得できます。
+    print(vehicle.set_pos_relative(x=3600001, y=0, w=0)) # 無効値を入力した場合、前回の指示値を取得できます。
 
 
 def sample4(port):
@@ -42,7 +42,7 @@ def sample4(port):
     time.sleep(5.0) # 5秒待つ 
     vehicle.brake() # 減速停止する  
     vehicle.join()  # 移動完了待ち 
-    print(vehicle.set_vel_relative(x=360001, y=0, w=0)) # 現在速度を取得 
+    print(vehicle.set_vel_relative(x=3600001, y=0, w=0)) # 現在速度を取得 
 
 def sample5(port):
     from triorb_core import robot 
@@ -63,7 +63,7 @@ def sample6(port):
     query = [] 
     query.append([RobotCodes(0x0301), b'\x02'])        # 励磁 
     query.append([RobotCodes(0x0313), TriOrbDrive3Pose(1,-1,0)])  # 相対姿勢制御  
-    #query.append([b'\x05\x03', np.uint32(1000)])    # 標準加減速時間設定 
+    query.append([b'\x05\x03', np.uint32(1000)])    # 標準加減速時間設定 
     vehicle.tx(code_array=query) # 送信 
     print(vehicle.rx()) # 受信 
 
