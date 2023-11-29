@@ -22,12 +22,12 @@ import struct
 
 @dataclass
 class TriOrbBaseSystem:
-    version: int = 0
-    robot_type: int = 0
+    age: int = 0
+    weight: int = 0
     def to_bytes(self) -> bytes:
-        return struct.pack('<ii', self.version, self.robot_type)
+        return struct.pack('<ii', self.age, self.weight)
     def from_bytes(self, arr):
-        self.version, self.robot_type = struct.unpack("<ii", arr)
+        self.age, self.weight = struct.unpack("<ii", arr)
     
 @dataclass
 class TriOrbBaseDevice:
@@ -48,6 +48,16 @@ class TriOrbBaseSensor:
         self.age, self.weight = struct.unpack("<ii", arr)
 
 @dataclass
+class TriOrbBaseError:
+    alarm: np.uint8 = 0
+    motor_id: np.uint8 = 0
+    def to_bytes(self) -> bytes:
+        return struct.pack('<bb', self.alarm, self.motor_id)
+    def from_bytes(self, arr):
+        self.alarm, self.motor_id = struct.unpack("<bb", arr)
+    
+
+@dataclass
 class TriOrbDriveUSS:
     v1: np.uint8 = 255
     v2: np.uint8 = 255
@@ -59,15 +69,7 @@ class TriOrbDriveUSS:
     def from_bytes(self, arr):
         self.v1, self.v2, self.v3, self.v4, self.v5 = struct.unpack("<BBBBB", arr)
 
-@dataclass
-class TriOrbBaseError:
-    alarm: np.uint8 = 0
-    motor_id: np.uint8 = 0
-    def to_bytes(self) -> bytes:
-        return struct.pack('<BB', self.alarm, self.motor_id)
-    def from_bytes(self, arr):
-        self.alarm, self.motor_id = struct.unpack("<BB", arr)
-    
+
 @dataclass
 class TriOrbBaseState:
     #state: np.uint32 = 0
@@ -84,10 +86,10 @@ class TriOrbBaseState:
         #return struct.pack('<ib', self.state, self.motor_id)
         hb =  self.volt_l<<7 + self.volt_h<<6 + self.watt<<5 + self.trq<<4 \
              +self.move<<3 + self.in_pos<<2 + self.s_on<<1 + self.success
-        return hb.to_bytes() + self.motor_id.to_bytes()
+        return hb.to_bytes(1,"little") + self.motor_id.to_bytes(1,"little")
 
     def from_bytes(self, arr):
-        state, self.motor_id = struct.unpack("<BB", arr)
+        state, self.motor_id = struct.unpack("<bb", arr)
         #print("%16b\n" % state)
         self.volt_l = (state & 0b00000001) >> 0
         self.volt_h = (state & 0b00000010) >> 1
