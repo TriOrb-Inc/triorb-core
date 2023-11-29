@@ -53,6 +53,8 @@ class RobotCodes(Enum):
     GET_POSE = 0x010D
     ERROR_RESET = 0x0201
     ORIGIN_RESET = 0x0203
+    SET_POSE = 0x0205
+    SET_USS_VALUES = 0x0207
     STARTUP_SUSPENSION = 0x0301
     OPERATING_MODE = 0x0303
     STANDARD_ACCELERATION_TIME = 0x0305
@@ -67,6 +69,9 @@ class RobotCodes(Enum):
     DECELERATION_TIME = 0x0317
     DRIVING_TORQUE = 0x0319
     INITIALIZE_CONFIG = 0x031B
+    POSITION_DRIVE_STD_SPEED = 0x031D
+    POSITION_DRIVE_ROT_SPEED = 0x031F
+    POSITION_DRIVE_DECELERATION = 0x0321
 
 
     KINEMATICS = 0xFF02
@@ -87,6 +92,8 @@ RobotValueTypes = {
     RobotCodes.GET_POSE: TriOrbDrive3Pose,
     RobotCodes.ERROR_RESET: np.uint8,
     RobotCodes.ORIGIN_RESET: np.uint8,
+    RobotCodes.SET_POSE: TriOrbDrive3Pose,
+    RobotCodes.SET_USS_VALUES: TriOrbDriveUSS,
     RobotCodes.STARTUP_SUSPENSION: np.uint8,
     RobotCodes.OPERATING_MODE: np.uint8,
     RobotCodes.STANDARD_ACCELERATION_TIME: np.uint32,
@@ -101,6 +108,9 @@ RobotValueTypes = {
     RobotCodes.DECELERATION_TIME: TriOrbDrive3Vector,
     RobotCodes.DRIVING_TORQUE: np.uint16,
     RobotCodes.INITIALIZE_CONFIG: np.uint8,
+    RobotCodes.POSITION_DRIVE_STD_SPEED: np.float32,
+    RobotCodes.POSITION_DRIVE_ROT_SPEED: np.float32,
+    RobotCodes.POSITION_DRIVE_DECELERATION: np.float32,
 
     RobotCodes.KINEMATICS: TriOrbDriveMatrix,
     RobotCodes.KINEMATICS_TRANS: TriOrbDriveMatrix,
@@ -146,6 +156,8 @@ class robot:
             return val.value.to_bytes(2, UART_ENDIAN)
         if isinstance(val, RobotValues):
             return val.value.to_bytes(1, UART_ENDIAN)
+        if isinstance(val, TriOrbDriveUSS):
+            return val.to_bytes()
         if isinstance(val, TriOrbDrive3Pose):
             return val.to_bytes()
         if isinstance(val, TriOrbDrive3Vector):
@@ -190,6 +202,9 @@ class robot:
             return val.value.from_bytes(2, UART_ENDIAN)
         if isinstance(dtype, RobotValues):
             return val.value.from_bytes(1, UART_ENDIAN)
+        if isinstance(dtype, TriOrbDriveUSS):
+            dtype.from_bytes(val)
+            return dtype
         if isinstance(dtype, TriOrbDrive3Pose):
             dtype.from_bytes(val)
             return dtype
@@ -264,6 +279,7 @@ class robot:
         buf = b""
         while(True):
             buf += self._uart.readline() # 0x0aまで読み込み
+            #print(buf)
             if len(buf)<2:
                 print("Now Loading.", end="\r")
                 continue
@@ -331,11 +347,13 @@ class robot:
         self._uart.reset_output_buffer()
         self._uart.reset_input_buffer()
         print("remain rx -> ", end="")
+        buff = b""
         while(True):
             buf = self._uart.read()
             if buf==b"":
                 break
-            print(buf, end="")
+            buff += buf
+        print(buff, end="")
         print()
 
     def wakeup(self):
@@ -440,13 +458,12 @@ class robot:
         logger.debug("initialize_config")
         command = [ [RobotCodes.INITIALIZE_CONFIG, 0x00] ]
         logger.debug(self.byteList_to_string(self.tx( command )))
-        self.clear_rx()
-        print("Write done. Please reboot robot.")
-        return True
+        return self.rx()
         #return self.rx()
 
 
-    def set_pos_absolute(self, x, y, w, acc=None, dec=None): # read mode not implemented
+    # 最大値より大きい値の軸は動かないようにしたのであらかじめ最大値より大きい値を入れておく
+    def set_pos_absolute(self, x=4000000, y=4000000, w=4000000, acc=None, dec=None, vel_xy=None, vel_w=None):
         logger.debug("set_pos_absolute")
         td3p = RobotValueTypes[RobotCodes.TARGET_POSITION_ABSOLUTE](x,y,w)
         query = [[ RobotCodes.TARGET_POSITION_ABSOLUTE, td3p ]]
@@ -456,10 +473,18 @@ class robot:
         if dec is not None:
             dec = RobotValueTypes[RobotCodes.DECELERATION_TIME](dec,dec,dec)
             query.append([RobotCodes.DECELERATION_TIME, dec ])
+
+        if vel_xy is not None:
+            vel = RobotValueTypes[RobotCodes.POSITION_DRIVE_STD_SPEED](vel_xy)
+            query.append([RobotCodes.POSITION_DRIVE_STD_SPEED, vel ])
+        if vel_w is not None:
+            vel = RobotValueTypes[RobotCodes.POSITION_DRIVE_ROT_SPEED](vel_w)
+            query.append([RobotCodes.POSITION_DRIVE_ROT_SPEED, vel ])
+
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
 
-    def set_pos_relative(self, x, y, w, acc=None, dec=None): # read mode not implemented
+    def set_pos_relative(self, x, y, w, acc=None, dec=None, vel_xy=None, vel_w=None): # read mode not implemented
         logger.debug("set_pos_relative")
         td3p = RobotValueTypes[RobotCodes.TARGET_POSITION_RELATIVE](x,y,w)
         query = [[ RobotCodes.TARGET_POSITION_RELATIVE, td3p ]]
@@ -469,6 +494,13 @@ class robot:
         if dec is not None:
             dec = RobotValueTypes[RobotCodes.DECELERATION_TIME](dec,dec,dec)
             query.append([ RobotCodes.DECELERATION_TIME, dec ])
+        if vel_xy is not None:
+            vel = RobotValueTypes[RobotCodes.POSITION_DRIVE_STD_SPEED](vel_xy)
+            query.append([RobotCodes.POSITION_DRIVE_STD_SPEED, vel ])
+        if vel_w is not None:
+            vel = RobotValueTypes[RobotCodes.POSITION_DRIVE_ROT_SPEED](vel_w)
+            query.append([RobotCodes.POSITION_DRIVE_ROT_SPEED, vel ])
+
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
     
@@ -485,9 +517,9 @@ class robot:
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
 
-    def set_vel_relative(self, x, y, w, acc=None, dec=None):
+    def set_vel_relative(self, vx, vy, vw, acc=None, dec=None):
         logger.debug("set_vel_relative")
-        td3p = RobotValueTypes[RobotCodes.MOVING_SPEED_RELATIVE](x,y,w)
+        td3p = RobotValueTypes[RobotCodes.MOVING_SPEED_RELATIVE](vx,vy,vw)
         query = [[ RobotCodes.MOVING_SPEED_RELATIVE, td3p ]]
         if acc is not None:
             acc = RobotValueTypes[RobotCodes.ACCELERATION_TIME](acc,acc,acc)
@@ -631,6 +663,18 @@ class robot:
         return self.rx()
 
 
+    def set_odometry(self, x,y,w):
+        logger.debug("set_odom")
+        td3p = RobotValueTypes[RobotCodes.SET_POSE](x,y,w)
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.SET_POSE, td3p]])))
+        return self.rx()
+
+    def set_uss_values(self, params):
+        logger.debug("set_uss_values")
+        uss = RobotValueTypes[RobotCodes.SET_USS_VALUES](params[0], params[1], params[2], params[3], params[4]) 
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.SET_USS_VALUES, uss]])))
+        return self.rx()
+
     def operating_mode(self, param=0x03): # no need?
         logger.debug("operating_mode")
         logger.debug(self.byteList_to_string(self.tx([[RobotCodes.OPERATING_MODE, param]])))
@@ -646,6 +690,12 @@ class robot:
         logger.debug("set_deceleration_time")
         td3p = RobotValueTypes[RobotCodes.DECELERATION_TIME](param,param,param)
         logger.debug(self.byteList_to_string(self.tx([[RobotCodes.DECELERATION_TIME, td3p ]])))
+        return self.rx()
+
+    def deceleration_position_drive(self, vel):
+        logger.debug("deceleration_position_drive")
+        vel = RobotValueTypes[RobotCodes.POSITION_DRIVE_DECELERATION](vel)
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.POSITION_DRIVE_DECELERATION, vel ]])))
         return self.rx()
 
     #def set_torque(self, param):

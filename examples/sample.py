@@ -14,6 +14,7 @@ def sample1(port):
 def sample2(port):
     from triorb_core import robot 
     vehicle = robot(port) 
+    print(vehicle.get_info())
     print(vehicle.get_motor_status(params=['error','state','voltage','power'], _id=[1,2,3]))    # 指定したIDのモータードライバの各種ステータスを取得 
 
 
@@ -21,28 +22,43 @@ def sample3(port):
     from triorb_core import robot 
     vehicle = robot(port) 
     vehicle.wakeup() # 起動 
-    vehicle.set_pos_relative(x=1.0, y=-1.0, w=90.0) # ロボットの姿勢をローカル座標系で設定。並進位置x=1.0[m], y=-1.0[m]および回転位置w=90.0[deg] の姿勢を取ります。 
+    time.sleep(3)
+    vehicle.write_config({ # 設定を書込み 
+        "acc" : 1000,
+        "std-vel" : 0.4, 
+        "std-rot" : 1.5,
+    }) 
+    time.sleep(3)
+    #vehicle.set_pos_relative(x=1.0, y=-1.0, w=90.0) # ロボットの姿勢をローカル座標系で設定。並進位置x=1.0[m], y=-1.0[m]および回転位置w=90.0[deg] の姿勢を取ります。 
+    vehicle.set_pos_relative(x=0.0, y=1.0, w=0.0) # ロボットの姿勢をローカル座標系で設定。並進位置x=1.0[m], y=-1.0[m]および回転位置w=90.0[deg] の姿勢を取ります。 
+    time.sleep(3)
     vehicle.join() # 動作完了待ち 
-
-    vehicle.set_pos_relative(x=1.0, y=0, w=0, acc=3000, dec=2000) # 加速時間を3秒、減速時間を2秒に設定しロボットをローカル座標系の位置x=1.0[m] の姿勢を取ります。 
+    time.sleep(3)
+    vehicle.set_pos_relative(x=0.0, y=0, w=-90)
+    time.sleep(3)
     vehicle.join() 
-    print(vehicle.set_pos_relative(x=360001, y=0, w=0)) # 無効値を入力した場合、前回の指示値を取得できます。
+
+    print(vehicle.set_pos_relative(x=3600001, y=0, w=0)) # 無効値を入力した場合、前回の指示値を取得できます。
 
 
 def sample4(port):
+    #import logging
+    #formatter = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    #logging.basicConfig(level=logging.DEBUG, format=formatter)
     from triorb_core import robot 
     vehicle = robot(port) 
     vehicle.wakeup() # 起動 
-    vehicle.set_vel_relative(x=0.1, y=0.1, w=0.1) # ロボットの速度をローカル座標系で設定。並進x=0.1[m/s], y=0.1[m/s]および旋回w=0.1[rad/s] の速度で移動。 
+    time.sleep(3.0)
+    vehicle.set_vel_relative(vx=0.1, vy=0.1, vw=0.1) # ロボットの速度をローカル座標系で設定。並進x=0.1[m/s], y=0.1[m/s]および旋回w=0.1[rad/s] の速度で移動。 
     time.sleep(5.0) # 5秒待つ 
     vehicle.brake() # 減速停止する 
     vehicle.join()  # 移動完了待ち 
 
-    vehicle.set_vel_relative(x=0.1, y=0, w=0, acc=3000, dec=2000) # 加速時間3秒、減速時間2秒に設定し、ロボットの速度をローカル座標系の並進x=0.1[m/s]に設定。 
+    vehicle.set_vel_relative(vx=0.1, vy=0, vw=0, acc=3000, dec=2000) # 加速時間3秒、減速時間2秒に設定し、ロボットの速度をローカル座標系の並進x=0.1[m/s]に設定。 
     time.sleep(5.0) # 5秒待つ 
     vehicle.brake() # 減速停止する  
     vehicle.join()  # 移動完了待ち 
-    print(vehicle.set_vel_relative(x=360001, y=0, w=0)) # 現在速度を取得 
+    print(vehicle.set_vel_relative(vx=3600001, vy=0, vw=0)) # 現在速度を取得 
 
 def sample5(port):
     from triorb_core import robot 
@@ -63,7 +79,7 @@ def sample6(port):
     query = [] 
     query.append([RobotCodes(0x0301), b'\x02'])        # 励磁 
     query.append([RobotCodes(0x0313), TriOrbDrive3Pose(1,-1,0)])  # 相対姿勢制御  
-    #query.append([b'\x05\x03', np.uint32(1000)])    # 標準加減速時間設定 
+    query.append([b'\x05\x03', np.uint32(1000)])    # 標準加減速時間設定 
     vehicle.tx(code_array=query) # 送信 
     print(vehicle.rx()) # 受信 
 
@@ -86,11 +102,22 @@ def sample6(port):
 
 
 if __name__ == "__main__":
-    port = "COM1"
-    sample1(port)
+    port = "COM32"
+    #print("sample1")
+    #sample1(port)
+    #time.sleep(2)
+    #print("sample2")
     #sample2(port)
+    #time.sleep(2)
+    #print("sample3")
     #sample3(port)
+    #time.sleep(2)
+    #print("sample4")
     #sample4(port)
-    #sample5(port)
+    #time.sleep(2)
+    print("sample5")
+    sample5(port)
+    #time.sleep(2)
     #from triorb_core import *
+    #print("sample6")
     #sample6(port)

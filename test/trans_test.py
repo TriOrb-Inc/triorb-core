@@ -24,7 +24,8 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from triorb_core import *
 
 formatter = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-logging.basicConfig(level=logging.DEBUG, format=formatter)
+#logging.basicConfig(level=logging.DEBUG, format=formatter)
+logging.basicConfig(level=logging.ERROR, format=formatter)
 
 
 def check_data_types():
@@ -40,131 +41,203 @@ def check_data_types():
 
 def check_robot_functions(com1):
     import time
-    vheicle = robot(com1)
-    logging.info(vheicle.codes)
-    #_tx = vheicle.tx(code_array=[ RobotCodes.SYSTEM_INFORMATION,
+    vehicle = robot(com1)
+    logging.info(vehicle.codes)
+
+    #_tx = vehicle.tx(code_array=[ RobotCodes.SYSTEM_INFORMATION,
     #                            [RobotCodes.STARTUP_SUSPENSION, 0x02],
     #                            [RobotCodes.STANDARD_ACCELERATION_TIME, TriOrbDrive3Pose(1000,1000,1000)],
     #                            ])
-    #logging.info(vheicle.byteList_to_string(_tx))
-    #assert vheicle.byteList_to_string(_tx) == '0x00 0x01 0x00 0x00 0x01 0x03 0x02 0x05 0x03 0x00 0x00 0x7a 0x44 0x00 0x00 0x7a 0x44 0x00 0x00 0x7a 0x44 0x0d 0x0a'
+    #logging.info(vehicle.byteList_to_string(_tx))
+    #assert vehicle.byteList_to_string(_tx) == '0x00 0x01 0x00 0x00 0x01 0x03 0x02 0x05 0x03 0x00 0x00 0x7a 0x44 0x00 0x00 0x7a 0x44 0x00 0x00 0x7a 0x44 0x0d 0x0a'
+    """
+    query = []
+    query.append( [RobotCodes(0x0301), 0x02] )                      # 励磁
+    query.append( [RobotCodes(0x0313), TriOrbDrive3Pose(1,-1,0)] )  # 相対姿勢制御 
+    query.append( [b'\x05\x03', b'\xe8\03\x00\x00']      )          # 標準加速度設定 
+
+    vehicle.tx(code_array=query) 
+    print(vehicle.rx_bytes())
+
+    #query = []  
+    #query.append([RobotCodes(0x0009), b'\x00\x01'])  # モータードライバのステータス取得(ID1) 
+    #val = TriOrbBaseState(motor_id=2) 
+    #query.append([b'\x09\x00', val])  # モータードライバのステータス取得(ID2) 
+    #vehicle.tx(code_array=query) 
+    #print(vehicle.rx())
+
+    time.sleep(5)
+    vehicle.tx( [[b'\x01\x03', b'\x01']] )                         # 無励磁
+    vehicle.rx()
+    exit()
+    """
+
+    vehicle.clear_rx()
+    #M = np.array( [ [ 3000.,  6000, 650],
+    #                [-6000,      0, 650],
+    #                [ 3000., -6000, 650] ], dtype=np.float32 )
+    #print( vehicle.initialize_config() )
+    #exit()
+    #vehicle.initialize_config()
+    #exit()
+
+    v = np.zeros((3,3), dtype=np.float32)
+    #v = np.identity(3, dtype=np.float32)
+    #command = [[RobotCodes.KINEMATICS_TRANS,   TriOrbDriveMatrix(v)]]
+    #command = [[RobotCodes.KINEMATICS,   TriOrbDriveMatrix(v)]]
+    #vehicle.tx(command)
+    #print( vehicle.rx() )
+    #exit()
+    #command = [RobotCodes.KINEMATICS,   TriOrbDriveMatrix(M)]
+    #command = [RobotCodes.KINEMATICS_TRANS,   TriOrbDriveMatrix(v)]
+    #vehicle.tx(command)
+    #print( vehicle.rx() )
+    #exit()
+
+    #command = []
+
+    ss = 0
+    for i in range(10000):
+        st = time.time()
+        vehicle.get_info()
+        ss += time.time()-st
+    print(ss/10000)
+    exit()
+
 
     is_start_end=1
+    odom        =0
     vel_test    =0
     pos_test    =0
     configs     =0
     info_test   =0
     get_status  =0
 
+    #try:
+    if True:
+        if is_start_end:
+            vehicle.wakeup()
+            time.sleep(2)
+            print()
+            command = [[RobotCodes(0x1010), b"\x00"]]
+            vehicle.tx(command)
+            print(vehicle.rx())
+            time.sleep(2)
 
-    if is_start_end:
-        vheicle.wakeup()
-        time.sleep(2)
-        print()
+        if odom:
+            print(vehicle.set_odometry(10,5,3.14))
+            print(vehicle.get_pos())
 
-    """
-    tx = vheicle.tx(code_array=[[ RobotCodes.SYSTEM_INFORMATION, TriOrbBaseSystem()],
-                               [RobotCodes.STARTUP_SUSPENSION, 0x02],
-                               [RobotCodes.STANDARD_ACCELERATION_TIME, np.uint32(1000)],
-                               ])
-    print(vheicle.rx())
-    #print(vheicle.clear_rx())
-    """
+        if configs:
+            #params={"acc":2000.0, "dec":2000.0, "std-vel":1.5}
+            params={"acc":200.0, "dec":200.0, "std-vel":0.3, "torque":1000}
+            vehicle.read_config()
+            vehicle.write_config(params)
+            vehicle.read_config()
+            print()
 
-    """
-    tx = vheicle.tx(code_array=[
-                                [ RobotCodes.MOVING_SPEED_RELATIVE, TriOrbDrive3Pose(0.3,0,0)],
-                                 [RobotCodes.ACCELERATION_TIME, TriOrbDrive3Vector(2000,2000,2000)],
-                               ])
-    print(vheicle.rx())
-    time.sleep(5)
-    print( vheicle.set_vel_relative(x=-0.5, y=0.0, w=0.0) )
-    time.sleep(5)
-    """
+        if vel_test:
+            spd = 7.0
+            print( vehicle.set_vel_relative(vx=0.0, vy=0.0, vw=spd) )
+            print()
+            time.sleep(3)
+            vehicle.brake()
+            vehicle.join()
 
-    print( vheicle.set_torque(3000) )
-    print( vheicle.set_torque(2000) )
-    print( vheicle.set_torque(3000) )
+            print( vehicle.set_vel_relative(vx=0.0, vy=0.0, vw=-spd) )
+            print()
+            time.sleep(3)
+            vehicle.brake()
+            vehicle.join()
 
-    if configs:
-        params={"acc":2000.0, "dec":2000.0, "std-vel":1.5}
-        #params={"acc":1.0, "dec":1.0, "std-vel":0.5}
-        vheicle.read_config()
-        vheicle.write_config(params)
-        vheicle.read_config()
-        print()
+            print( vehicle.set_vel_relative(vx=-spd, vy=0.0, vw=0.0, acc=100, dec=100) )
+            print()
+            time.sleep(3)
+            vehicle.brake()
+            vehicle.join()
 
-    if vel_test:
-        print( vheicle.set_vel_relative(x=-0.5, y=0.0, w=0.0) )
-        print()
-        time.sleep(10)
-        print( vheicle.set_vel_relative(x=0xFFFFFFFF, y=0.0, w=0.0) ) #read only
-        print()
-        time.sleep(5)
-        print( vheicle.set_vel_relative(x=0.5, y=0.0, w=0.0) )
-        print()
-        time.sleep(10)
-        print( vheicle.set_vel_relative(x=0xFFFFFFFF, y=0.0, w=0.0) )#read only
-        print()
-        time.sleep(2.5)
-        vheicle.brake()
-        print()
+            print( vehicle.set_vel_relative(vx= spd, vy=0.0, vw=0.0, acc=100, dec=100) )
+            print()
+            time.sleep(3)
+            vehicle.brake()
+            vehicle.join()
 
-        # not impolemented
-        vheicle.set_vel_absolute(x=0.5, y=0.0, w=0.0)
-        time.sleep(2.5)
-        vheicle.set_vel_absolute(x=0xFFFFFFFF, y=0.0, w=0.0) #read mode
-        time.sleep(2.5)
-        vheicle.brake()
-        print()
+            print( vehicle.set_vel_relative(vx= 0.0, vy=spd, vw=0.0) )
+            print()
+            time.sleep(3)
+            vehicle.brake()
+            vehicle.join()
 
-    if pos_test:
-        vheicle.write_config()
-        print( vheicle.set_pos_relative(x=-3, y=3.0, w=0.0) )
-        time.sleep(1.0)
-        print(vheicle.set_pos_relative(x=0xFFFFFFFF, y=0.0, w=0.0) ) #read mode
-        time.sleep(5)
-        vheicle.join()
-
-        print(vheicle.set_pos_relative(x=5, y=0.0, w=0.0))
-        time.sleep(1.0)
-        print(vheicle.set_pos_relative(x=0XFFFFFFFF, y=0.0, w=0.0)) #read mode
-        time.sleep(5)
-        vheicle.join()
-        
-        print(vheicle.set_pos_absolute(x=-3, y=3.0, w=0.0))
-        time.sleep(1.0)
-        print(vheicle.set_pos_absolute(x=0xFFFFFFFF, y=0.0, w=0.0)) #read mode
-        time.sleep(5)
-        vheicle.join()
-
-        print(vheicle.set_pos_absolute(x=5, y=0.0, w=0.0))
-        time.sleep(1.0)
-        print(vheicle.set_pos_absolute(x=0XFFFFFFFF, y=0.0, w=0.0)) #read mode
-        time.sleep(5)
-        vheicle.join()
-        print()
+            print( vehicle.set_vel_relative(vx= 0.0, vy=-spd, vw=0.0) )
+            print()
+            time.sleep(3)
+            vehicle.brake()
+            vehicle.join()
 
 
-    if info_test:
-        print(vheicle.get_info())
-        print(vheicle.get_device_status())
-        print(vheicle.get_sensor_info())
-        print()
+        if pos_test:
+            params={"acc":200, "dec":200, "std-vel":0.5}
+            print( vehicle.write_config(params) )
+            pos = 0.5
+            time.sleep(3)
 
-    if get_status:
-        print(vheicle.get_error_info())
-        time.sleep(0.5)
-        print(vheicle.get_operating_status())
-        time.sleep(0.5)
-        print(vheicle.get_voltage())
-        time.sleep(0.5)
-        print(vheicle.get_power())
-        time.sleep(0.5)
-        print()
+            print( vehicle.set_pos_relative(x=pos, y=pos, w=0.0) )
+            #print(vehicle.set_pos_relative(x=0xFFFFFFFF, y=0.0, w=0.0) ) #read mode
+            vehicle.join()
 
-    if is_start_end:
-        vheicle.sleep()
+            print( vehicle.set_pos_relative(x=-pos, y=-pos, w=0.0) )
+            #print(vehicle.set_pos_relative(x=0xFFFFFFFF, y=0.0, w=0.0) ) #read mode
+            vehicle.join()
+            #"""
+            print( vehicle.set_pos_relative(x=0.0, y=0, w=-pos) )
+            #print(vehicle.set_pos_relative(x=0xFFFFFFFF, y=0.0, w=0.0) ) #read mode
+            vehicle.join()
+
+            print( vehicle.set_pos_relative(x=0.0, y=0.0, w=pos) )
+            #print(vehicle.set_pos_relative(x=0xFFFFFFFF, y=0.0, w=0.0) ) #read mode
+            vehicle.join()
+
+            print( vehicle.set_pos_relative(x=pos, y=0, w=0.0) )
+            #print(vehicle.set_pos_relative(x=0xFFFFFFFF, y=0.0, w=0.0) ) #read mode
+            vehicle.join()
+
+            print( vehicle.set_pos_relative(x=-pos, y=0, w=0.0) )
+            #print(vehicle.set_pos_relative(x=0xFFFFFFFF, y=0.0, w=0.0) ) #read mode
+            vehicle.join()
+
+            print( vehicle.set_pos_relative(x=0, y=pos, w=0.0) )
+            #print(vehicle.set_pos_relative(x=0xFFFFFFFF, y=0.0, w=0.0) ) #read mode
+            vehicle.join()
+
+            print( vehicle.set_pos_relative(x=0, y=-pos, w=0.0) )
+            #print(vehicle.set_pos_relative(x=0xFFFFFFFF, y=0.0, w=0.0) ) #read mode
+            vehicle.join()
+
+
+        if info_test:
+            print(vehicle.get_info())
+            print(vehicle.get_device_status())
+            print(vehicle.get_sensor_info())
+            print()
+
+        if get_status:
+            print(vehicle.get_motor_status())
+            time.sleep(0.5)
+            #print(vehicle.get_error_info())
+            #time.sleep(0.5)
+            #print(vehicle.get_operating_status())
+            #time.sleep(0.5)
+            #print(vehicle.get_voltage())
+            #time.sleep(0.5)
+            #print(vehicle.get_power())
+            #time.sleep(0.5)
+            #print()
+
+        if is_start_end:
+            vehicle.sleep()
+
+    #except:
+    #    vehicle.sleep()
     exit()
 
 
