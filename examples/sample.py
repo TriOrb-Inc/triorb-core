@@ -37,7 +37,6 @@ def sample3(port):
     vehicle.set_pos_relative(x=0.0, y=0, w=-90)
     time.sleep(3)
     vehicle.join() 
-
     print(vehicle.set_pos_relative(x=3600001, y=0, w=0)) # 無効値を入力した場合、前回の指示値を取得できます。
 
 
@@ -58,7 +57,7 @@ def sample4(port):
     time.sleep(5.0) # 5秒待つ 
     vehicle.brake() # 減速停止する  
     vehicle.join()  # 移動完了待ち 
-    print(vehicle.set_vel_relative(vx=3600001, vy=0, vw=0)) # 現在速度を取得 
+    print(vehicle.set_vel_relative(vx=3600001, vy=0, vw=0)) # 現在速度を取得
 
 def sample5(port):
     from triorb_core import robot 
