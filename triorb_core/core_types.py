@@ -70,8 +70,8 @@ class TriOrbBaseState:
     motor_id: np.uint8 = 0
     def to_bytes(self) -> bytes:
         #return struct.pack('<ib', self.state, self.motor_id)
-        hb =  self.volt_l<<7 + self.volt_h<<6 + self.watt<<5 + self.trq<<4 \
-             +self.move<<3 + self.in_pos<<2 + self.s_on<<1 + self.success
+        hb =  self.volt_l<<7 | self.volt_h<<6 | self.watt<<5 | self.trq<<4 \
+             |self.move<<3 | self.in_pos<<2 | self.s_on<<1 | self.success
         return hb.to_bytes() + self.motor_id.to_bytes()
 
     def from_bytes(self, arr):
