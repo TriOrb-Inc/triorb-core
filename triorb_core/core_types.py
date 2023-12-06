@@ -57,6 +57,20 @@ class TriOrbBaseError:
     def from_bytes(self, arr):
         self.alarm, self.motor_id = struct.unpack("<bb", arr)
     
+
+@dataclass
+class TriOrbDriveUSS:
+    v1: np.uint8 = 255
+    v2: np.uint8 = 255
+    v3: np.uint8 = 255
+    v4: np.uint8 = 255
+    v5: np.uint8 = 255
+    def to_bytes(self) -> bytes:
+        return struct.pack('<BBBBB', self.v1, self.v2, self.v3, self.v4, self.v5)
+    def from_bytes(self, arr):
+        self.v1, self.v2, self.v3, self.v4, self.v5 = struct.unpack("<BBBBB", arr)
+
+
 @dataclass
 class TriOrbBaseState:
     #state: np.uint32 = 0
