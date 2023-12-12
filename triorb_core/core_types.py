@@ -55,7 +55,7 @@ class TriOrbBaseError:
     def to_bytes(self) -> bytes:
         return struct.pack('<bb', self.alarm, self.motor_id)
     def from_bytes(self, arr):
-        self.alarm, self.motor_id = struct.unpack("<bb", arr)
+        self.alarm, self.motor_id = struct.unpack("<BB", arr)
     
 
 @dataclass
