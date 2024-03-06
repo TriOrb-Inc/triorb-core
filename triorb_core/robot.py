@@ -123,6 +123,8 @@ class robot:
         if port is None:
             raise Exception("Please set UART port path/name")
         print(port)
+        self._expected_response_values = []
+        self._expected_response_size = []
         self._uart = None
         self._uart = serial.Serial(
             port=port,
@@ -135,8 +137,6 @@ class robot:
             rtscts=UART_FLOW,
         )
 
-        self._expected_response_values = []
-        self._expected_response_size = []
 
     def _print_info(self, *args, **kwargs):
         if self.node is not None:
@@ -303,6 +303,8 @@ class robot:
         return _tx_bytes
 
     def rx(self):
+        if self._uart is None:
+            return 0
         expected_buf_length = sum(self._expected_response_size) + \
             len(self._expected_response_size)*2 + len([0x00, 0x0d, 0x0a])
         # return expected_buf_length
