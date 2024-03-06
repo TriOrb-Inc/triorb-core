@@ -734,4 +734,5 @@ class robot:
 
     def __del__(self):
         self.sleep()
-        self._uart.close()
+        if self._uart is not None:
+            self._uart.close()
