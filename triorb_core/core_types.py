@@ -59,7 +59,7 @@ class TriOrbBaseError:
     
 
 @dataclass
-class TriOrbDriveUSS:
+class TriOrbDriveObstacle:
     v1: np.uint8 = 255
     v2: np.uint8 = 255
     v3: np.uint8 = 255
@@ -150,5 +150,15 @@ class TriOrbDriveMatrix:
 
     def from_bytes(self, arr):
         self.mat[0,0], self.mat[0,1], self.mat[0,2], self.mat[1,0], self.mat[1,1], self.mat[1,2], self.mat[2,0], self.mat[2,1], self.mat[2,2] = struct.unpack('<fffffffff', arr)
-                                         
-                                         
+
+@dataclass
+class TriOrbLimitVels:
+    v1: np.float32 = 0.0
+    v2: np.float32 = 0.0
+    v3: np.float32 = 0.0
+    v4: np.float32 = 0.0
+    def to_bytes(self) -> bytes:
+        return struct.pack('<ffff', self.v1, self.v2, self.v3, self.v4)
+    def from_bytes(self, arr):
+        self.v1, self.v2, self.v3, self.v4 = struct.unpack("<ffff", arr)
+

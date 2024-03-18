@@ -70,6 +70,9 @@ class RobotCodes(Enum):
     INITIALIZE_CONFIG = 0x031B
     POSITION_DRIVE_STD_SPEED = 0x031D
     POSITION_DRIVE_ROT_SPEED = 0x031F
+    POSITION_DRIVE_DECELERATION = 0x0321
+    MOVING_DRIVE_LIFE_TIME = 0x0323
+    LIMIT_VELOCITY = 0x0325
 
     KINEMATICS = 0xFF02
     KINEMATICS_TRANS = 0xFF04
@@ -92,7 +95,7 @@ RobotValueTypes = {
     RobotCodes.ERROR_RESET: np.uint8,
     RobotCodes.ORIGIN_RESET: np.uint8,
     RobotCodes.SET_POSE: TriOrbDrive3Pose,
-    RobotCodes.SET_USS_VALUES: TriOrbDriveUSS,
+    RobotCodes.SET_USS_VALUES: TriOrbDriveObstacle,
     RobotCodes.STARTUP_SUSPENSION: np.uint8,
     RobotCodes.OPERATING_MODE: np.uint8,
     RobotCodes.STANDARD_ACCELERATION_TIME: np.uint32,
@@ -108,6 +111,9 @@ RobotValueTypes = {
     RobotCodes.DRIVING_TORQUE: np.uint16,
     RobotCodes.POSITION_DRIVE_STD_SPEED: np.float32,
     RobotCodes.POSITION_DRIVE_ROT_SPEED: np.float32,
+    RobotCodes.POSITION_DRIVE_DECELERATION: np.float32,
+    RobotCodes.MOVING_DRIVE_LIFE_TIME: np.uint32,
+    RobotCodes.LIMIT_VELOCITY: TriOrbLimitVels,
 
 
     RobotCodes.KINEMATICS: TriOrbDriveMatrix,
@@ -180,7 +186,7 @@ class robot:
             return val.value.to_bytes(2, UART_ENDIAN)
         if isinstance(val, RobotValues):
             return val.value.to_bytes(1, UART_ENDIAN)
-        if isinstance(val, TriOrbDriveUSS):
+        if isinstance(val, TriOrbDriveObstacle):
             return val.to_bytes()
         if isinstance(val, TriOrbDrive3Pose):
             return val.to_bytes()
@@ -206,11 +212,13 @@ class robot:
             return int(val).to_bytes(2, UART_ENDIAN)
         if isinstance(val, np.float32):
             return struct.pack('<f', val)
+        if isinstance(val, TriOrbLimitVels):
+            return val.to_bytes()
         # if isinstance(val, np.uint16):
         #    return val.to_bytes(2, UART_ENDIAN)
         # if isinstance(val, np.uint8):
         #    return val.to_bytes(1, UART_ENDIAN)
-        self._print_error(type(val))
+        # self._print_error(type(val))
         raise Exception("Unknown type")
 
     @staticmethod
@@ -225,7 +233,7 @@ class robot:
             return val.value.from_bytes(2, UART_ENDIAN)
         if isinstance(dtype, RobotValues):
             return val.value.from_bytes(1, UART_ENDIAN)
-        if isinstance(dtype, TriOrbDriveUSS):
+        if isinstance(dtype, TriOrbDriveObstacle):
             dtype.from_bytes(val)
             return dtype
         if isinstance(dtype, TriOrbDrive3Pose):
@@ -263,7 +271,7 @@ class robot:
         #    return val.to_bytes(2, UART_ENDIAN)
         # if isinstance(val, np.uint8):
         #    return val.to_bytes(1, UART_ENDIAN)
-        self._print_error(type(val))
+        # self._print_error(type(val))
         raise Exception("Unknown type")
 
     @staticmethod
