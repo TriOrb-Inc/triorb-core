@@ -124,6 +124,7 @@ RobotValueTypes = {
 class robot:
     def __init__(self, port=None, node=None):
         self.node = node
+        self.version = "1.0.1" # AEB, LIFETIME追加後から入れた
         if port is None:
             port = self.find_port()
         if port is None:
