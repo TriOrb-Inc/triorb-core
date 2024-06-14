@@ -54,6 +54,7 @@ class RobotCodes(Enum):
     ORIGIN_RESET = 0x0203
     SET_POSE = 0x0205
     SET_USS_VALUES = 0x0207
+    SET_MOTOR_PARAMS = 0x0209
     STARTUP_SUSPENSION = 0x0301
     OPERATING_MODE = 0x0303
     STANDARD_ACCELERATION_TIME = 0x0305
@@ -70,6 +71,9 @@ class RobotCodes(Enum):
     INITIALIZE_CONFIG = 0x031B
     POSITION_DRIVE_STD_SPEED = 0x031D
     POSITION_DRIVE_ROT_SPEED = 0x031F
+    MOVING_DRIVE_LIFE_TIME = 0x0323
+    AEB_MODE = 0x0325
+
 
     KINEMATICS = 0xFF02
     KINEMATICS_TRANS = 0xFF04
@@ -93,6 +97,7 @@ RobotValueTypes = {
     RobotCodes.ORIGIN_RESET: np.uint8,
     RobotCodes.SET_POSE: TriOrbDrive3Pose,
     RobotCodes.SET_USS_VALUES: TriOrbDriveUSS,
+    RobotCodes.SET_MOTOR_PARAMS: TriOrbMotorParams,
     RobotCodes.STARTUP_SUSPENSION: np.uint8,
     RobotCodes.OPERATING_MODE: np.uint8,
     RobotCodes.STANDARD_ACCELERATION_TIME: np.uint32,
@@ -108,7 +113,8 @@ RobotValueTypes = {
     RobotCodes.DRIVING_TORQUE: np.uint16,
     RobotCodes.POSITION_DRIVE_STD_SPEED: np.float32,
     RobotCodes.POSITION_DRIVE_ROT_SPEED: np.float32,
-
+    RobotCodes.MOVING_DRIVE_LIFE_TIME: np.uint32,
+    RobotCodes.AEB_MODE: np.uint8,
 
     RobotCodes.KINEMATICS: TriOrbDriveMatrix,
     RobotCodes.KINEMATICS_TRANS: TriOrbDriveMatrix,
@@ -538,7 +544,7 @@ class robot:
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
 
-    def set_vel_absolute(self, vx, vy, vw, acc=None, dec=None):  # read mode not implemented
+    def set_vel_absolute(self, vx, vy, vw, acc=None, dec=None, life_time=None):  # read mode not implemented
         logger.debug("set_vel_absolute")
         td3p = RobotValueTypes[RobotCodes.MOVING_SPEED_ABSOLUTE](x, y, w)
         query = [[RobotCodes.MOVING_SPEED_ABSOLUTE, td3p]]
@@ -548,10 +554,14 @@ class robot:
         if dec is not None:
             dec = RobotValueTypes[RobotCodes.DECELERATION_TIME](dec, dec, dec)
             query.append([RobotCodes.DECELERATION_TIME, dec])
+        if life_time is not None:
+            life = RobotValueTypes[RobotCodes.MOVING_DRIVE_LIFE_TIME](life_time)
+            query.append([RobotCodes.MOVING_DRIVE_LIFE_TIME, life])
+
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
 
-    def set_vel_relative(self, vx, vy, vw, acc=None, dec=None):
+    def set_vel_relative(self, vx, vy, vw, acc=None, dec=None, life_time=None):
         logger.debug("set_vel_relative")
         td3p = RobotValueTypes[RobotCodes.MOVING_SPEED_RELATIVE](vx, vy, vw)
         query = [[RobotCodes.MOVING_SPEED_RELATIVE, td3p]]
@@ -561,6 +571,9 @@ class robot:
         if dec is not None:
             dec = RobotValueTypes[RobotCodes.DECELERATION_TIME](dec, dec, dec)
             query.append([RobotCodes.DECELERATION_TIME, dec])
+        if life_time is not None:
+            life = RobotValueTypes[RobotCodes.MOVING_DRIVE_LIFE_TIME](life_time)
+            query.append([RobotCodes.MOVING_DRIVE_LIFE_TIME, life])
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
 
@@ -612,74 +625,7 @@ class robot:
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
 
-    # def _get_motor_status(self, _id, code):
-    #    if not isinstance(_id, list):
-    #        _id = [_id]
-    #    query = []
-    #    for i in _id:
-    #        if i in ALL_MOTOR_LOCAL_IDS:
-    #            query.append( [code, RobotValueTypes[code](motor_id=i)] )
-    #        else:
-    #            print("motor ID %d is not existing" % i)
-    #    logger.debug(self.byteList_to_string(self.tx(query)))
-    #    return self.rx()
 
-    # def get_error_info(self, _id=ALL_MOTOR_LOCAL_IDS):
-    #    logger.debug("get_error_info")
-    #    code = RobotCodes.ERROR_INFORMATION
-    #    values = self._get_motor_status(_id, code)
-    #    for i in range(len(_id)):
-    #        val = "正常" if values[i].alarm==0 else get_alarm_name( values[i].alarm )
-    #        print("ID{}: {}".format(_id[i], val))
-    #    return values
-
-    # def get_operating_status(self, _id=ALL_MOTOR_LOCAL_IDS):
-    #    logger.debug("get_operating_status")
-    #    code = RobotCodes.OPERATING_STATUS
-    #    values = self._get_motor_status(_id, code)
-    #    print_str =  "ID| 移動中 | 位置制御終了 | 励磁状態 |\n"
-    #    for i in range(len(_id)):
-    #        val = values[i]
-    #        print_str+="{:02}| 　 {}　 | 　　　　 {}　 | 　　 {}　 |\n".format(val.motor_id, val.move, val.in_pos, val.s_on)
-    #    print(print_str)
-    #    return values
-    #    #return print_str
-
-    # def get_voltage(self, _id=ALL_MOTOR_LOCAL_IDS):
-    #    logger.debug("get_voltage")
-    #    code = RobotCodes.POWER_SUPPLY_VOLTAGE
-    #    if not isinstance(_id, list):
-    #        _id = [_id]
-    #    query = []
-    #    for i in _id:
-    #        if i in ALL_MOTOR_LOCAL_IDS:
-    #            val = b'\x00\x00\x00' + int(i).to_bytes()
-    #            query.append( [code, val] )
-    #        else:
-    #            print("motor ID %d is not existing" % i)
-    #    logger.debug(self.byteList_to_string(self.tx(query)))
-    #    values = self.rx()
-    #    for i in range(len(_id)):
-    #        print("ID{}: {} V".format(_id[i], values[i]) )
-    #    return values
-
-    # def get_power(self, _id=ALL_MOTOR_LOCAL_IDS):
-    #    logger.debug("get_power")
-    #    code = RobotCodes.DRIVING_POWER
-    #    if not isinstance(_id, list):
-    #        _id = [_id]
-    #    query = []
-    #    for i in _id:
-    #        if i in ALL_MOTOR_LOCAL_IDS:
-    #            val = b'\x00\x00\x00' + int(i).to_bytes()
-    #            query.append( [code, val] )
-    #        else:
-    #            print("motor ID %d is not existing" % i)
-    #    logger.debug(self.byteList_to_string(self.tx(query)))
-    #    values = self.rx()
-    #    for i in range(len(_id)):
-    #        print("ID{}: {} W".format(_id[i], values[i]) )
-    #    return values
 
     def reset_error(self):
         logger.debug("reset_error")
@@ -721,6 +667,19 @@ class robot:
         logger.debug(self.byteList_to_string(
             self.tx([[RobotCodes.DECELERATION_TIME, td3p]])))
         return self.rx()
+
+    def set_aeb(self, param):
+        logger.debug("set_aeb")
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.AEB_MODE, param]])))
+        return self.rx()
+
+    def set_motor_param(self, lpf=True, filter_t=1, pos_p_gain=10, speed_p_gain=100, speed_i_gain=1580, torque_filter=1000, speed_feedforward=80, stiffness=7):
+        logger.debug("set_motor_param")
+        #smp = RobotValueTypes[RobotCodes.SET_MOTOR_PARAMS]( lpf, filter_t, pos_p_gain, speed_p_gain, speed_i_gain )
+        smp = RobotValueTypes[RobotCodes.SET_MOTOR_PARAMS]( lpf, filter_t, pos_p_gain, speed_p_gain, speed_i_gain, torque_filter, speed_feedforward, stiffness )
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.SET_MOTOR_PARAMS, smp]])))
+        return self.rx()
+
 
     # def set_torque(self, param):
     #    logger.debug("set_torque")

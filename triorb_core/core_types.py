@@ -72,6 +72,23 @@ class TriOrbDriveUSS:
 
 
 @dataclass
+class TriOrbMotorParams:
+    lpf:          bool = True
+    filter_t:     np.uint8 = 1
+    pos_p_gain:   np.uint8 = 10
+    speed_p_gain: np.uint16 = 100
+    speed_i_gain: np.uint16 = 1580
+    torque_filter: np.uint16 = 1000
+    speed_feedforward: np.uint8 = 80
+    stiffness: np.uint8 = 7
+    def to_bytes(self) -> bytes:
+        return struct.pack('<BBBHHHBB', self.lpf, self.filter_t, self.pos_p_gain, self.speed_p_gain, self.speed_i_gain, self.torque_filter, self.speed_feedforward, self.stiffness)
+    def from_bytes(self, arr):
+        self.lpf, self.filter_t, self.pos_p_gain, self.speed_p_gain, self.speed_i_gain, self.torque_filter, self.speed_feedforward, self.stiffness = struct.unpack("<?BBHHHBB", arr)
+        
+
+
+@dataclass
 class TriOrbBaseState:
     #state: np.uint32 = 0
     volt_l:  bool = 0
