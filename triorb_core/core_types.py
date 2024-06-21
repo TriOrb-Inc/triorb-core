@@ -90,37 +90,77 @@ class TriOrbMotorParams:
 
 @dataclass
 class TriOrbBaseState:
-    #state: np.uint32 = 0
-    volt_l:  bool = 0
-    volt_h:  bool = 0
-    watt:    bool = 0
-    trq:     bool = 0
+    btn_y:   bool = 0
+    btn_b:   bool = 0
+    btn_a:   bool = 0
+    btn_x:   bool = 0
     move:    bool = 0
     in_pos:  bool = 0
     s_on:    bool = 0
     success: bool = 0
+
+    emergency: bool = 0
+    flag1: bool = 0
+    flag2: bool = 0
+    flag3: bool = 0
+    flag4: bool = 0
+    flag5: bool = 0
+    flag6: bool = 0
+    flag7: bool = 0
+
     motor_id: np.uint8 = 0
     def to_bytes(self) -> bytes:
-        #return struct.pack('<ib', self.state, self.motor_id)
-        hb =  self.volt_l<<7 | self.volt_h<<6 | self.watt<<5 | self.trq<<4 \
+        hb =  self.btn_y<<7 | self.btn_b<<6 | self.btn_a<<5 | self.btn_x<<4 \
              |self.move<<3 | self.in_pos<<2 | self.s_on<<1 | self.success
-        return hb.to_bytes(length=1, byteorder=sys.byteorder) + self.motor_id.to_bytes(length=1, byteorder=sys.byteorder)
+        lb =  self.emergency<<7
 
-    def from_bytes(self, arr):
-        state, self.motor_id = struct.unpack("<bb", arr)
+        return hb.to_bytes(length=1, byteorder=sys.byteorder) + lb.to_bytes(length=1, byteorder=sys.byteorder) + self.motor_id.to_bytes(length=1, byteorder=sys.byteorder)
+
+#    def from_bytes(self, arr):
+#        state, self.motor_id = struct.unpack("<bb", arr)
+#        #print("%16b\n" % state)
+#        self.volt_l = (state & 0b00000001) >> 0
+#        self.volt_h = (state & 0b00000010) >> 1
+#        self.watt   = (state & 0b00000100) >> 2
+#        self.trq    = (state & 0b00001000) >> 3
+#        self.move   = (state & 0b00010000) >> 4
+#        self.in_pos = (state & 0b00100000) >> 5
+#        self.s_on   = (state & 0b01000000) >> 6
+#        #self.success= state!=0
+#        self.success= (state & 0b10000000) >> 7
+#        #print(state)
+#        if self.success==0:
+#            print("motor ID{} failed to read status".format(self.motor_id))
+
+    def from_bytes(self, arr, from_BE=False):
+        state, state2, self.motor_id = struct.unpack("<bbb", arr)
         #print("%16b\n" % state)
-        self.volt_l = (state & 0b00000001) >> 0
-        self.volt_h = (state & 0b00000010) >> 1
-        self.watt   = (state & 0b00000100) >> 2
-        self.trq    = (state & 0b00001000) >> 3
-        self.move   = (state & 0b00010000) >> 4
-        self.in_pos = (state & 0b00100000) >> 5
-        self.s_on   = (state & 0b01000000) >> 6
-        #self.success= state!=0
-        self.success= (state & 0b10000000) >> 7
-        #print(state)
+        if from_BE:
+            self.btn_y  = (state & 0b00000001) > 0
+            self.btn_b  = (state & 0b00000010) > 0
+            self.btn_a  = (state & 0b00000100) > 0
+            self.btn_x  = (state & 0b00001000) > 0
+            self.move   = (state & 0b00010000) > 0
+            self.in_pos = (state & 0b00100000) > 0
+            self.s_on   = (state & 0b01000000) > 0
+            self.success= (state & 0b10000000) > 0
+
+            self.emergency = (state2 & 0b00000001) > 0
+        else:
+            self.btn_y  = (state & 0b10000000) > 0
+            self.btn_b  = (state & 0b01000000) > 0
+            self.btn_a  = (state & 0b00100000) > 0
+            self.btn_x  = (state & 0b00010000) > 0
+            self.move   = (state & 0b00001000) > 0
+            self.in_pos = (state & 0b00000100) > 0
+            self.s_on   = (state & 0b00000010) > 0
+            self.success= (state & 0b00000001) > 0
+
+            self.emergency = (state2 & 0b10000000) > 0
+
         if self.success==0:
             print("motor ID{} failed to read status".format(self.motor_id))
+
     
 
 @dataclass

@@ -254,7 +254,7 @@ class robot:
             dtype.from_bytes(val)
             return dtype
         if isinstance(dtype, TriOrbBaseState):
-            dtype.from_bytes(val)
+            dtype.from_bytes(val, True)
             return dtype
         if isinstance(dtype, int):
             return struct.unpack("<i", val)[0]
@@ -603,6 +603,7 @@ class robot:
         return values[0]
 
     def get_motor_status(self, params=["error", "state", "voltage", "power"], _id=ALL_MOTOR_LOCAL_IDS):
+
         if not isinstance(_id, list):
             _id = [_id]
         if isinstance(params, str):
@@ -611,20 +612,52 @@ class robot:
                       "state": RobotCodes.OPERATING_STATUS,
                       "voltage": RobotCodes.POWER_SUPPLY_VOLTAGE,
                       "power": RobotCodes.DRIVING_POWER}
-        query = []
-        for pm in params:
-            code = code_dicts[pm]
+        if len(params) > 3: # 送信バイト数の上限を超えちゃうので分割して送信するための分岐
+            query = []
+            for pm in params[:3]:
+                code = code_dicts[pm]
+                val = RobotValueTypes[code](0)
+                val = self.to_bytes(val)
+                for i in _id:
+                    if i in ALL_MOTOR_LOCAL_IDS:
+                        # 最後の1バイトでIDを指定
+                        v = val[:-1] + int(i).to_bytes(1, "little")
+                        query.append([code, v])
+                    else:
+                        print("motor ID %d is not existing" % i)
+            logger.debug(self.byteList_to_string(self.tx(query)))
+            res1 = self.rx()
+
+            query = []
+            code = code_dicts[params[-1]]
             val = RobotValueTypes[code](0)
             val = self.to_bytes(val)
             for i in _id:
                 if i in ALL_MOTOR_LOCAL_IDS:
-                    # 最後の1バイトでIDを指定
                     v = val[:-1] + int(i).to_bytes(1, "little")
                     query.append([code, v])
                 else:
                     print("motor ID %d is not existing" % i)
-        logger.debug(self.byteList_to_string(self.tx(query)))
-        return self.rx()
+            logger.debug(self.byteList_to_string(self.tx(query)))
+            res2 = self.rx()
+            return res1 + res2
+
+
+        else:
+            query = []
+            for pm in params:
+                code = code_dicts[pm]
+                val = RobotValueTypes[code](0)
+                val = self.to_bytes(val)
+                for i in _id:
+                    if i in ALL_MOTOR_LOCAL_IDS:
+                        # 最後の1バイトでIDを指定
+                        v = val[:-1] + int(i).to_bytes(1, "little")
+                        query.append([code, v])
+                    else:
+                        print("motor ID %d is not existing" % i)
+            logger.debug(self.byteList_to_string(self.tx(query)))
+            return self.rx()
 
 
 
