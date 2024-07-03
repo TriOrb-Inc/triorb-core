@@ -73,7 +73,7 @@ class RobotCodes(Enum):
     POSITION_DRIVE_ROT_SPEED = 0x031F
     MOVING_DRIVE_LIFE_TIME = 0x0323
     AEB_MODE = 0x0325
-
+    DRIVE_MODE = 0x0401
 
     KINEMATICS = 0xFF02
     KINEMATICS_TRANS = 0xFF04
@@ -115,6 +115,7 @@ RobotValueTypes = {
     RobotCodes.POSITION_DRIVE_ROT_SPEED: np.float32,
     RobotCodes.MOVING_DRIVE_LIFE_TIME: np.uint32,
     RobotCodes.AEB_MODE: np.uint8,
+    RobotCodes.DRIVE_MODE: np.uint8,
 
     RobotCodes.KINEMATICS: TriOrbDriveMatrix,
     RobotCodes.KINEMATICS_TRANS: TriOrbDriveMatrix,
@@ -504,25 +505,25 @@ class robot:
             return False
 
     # read mode not implemented
-    def set_pos_absolute(self, x, y, w, acc=None, dec=None, vel_xy=None, vel_w=None):
-        logger.debug("set_pos_absolute")
-        td3p = RobotValueTypes[RobotCodes.TARGET_POSITION_ABSOLUTE](x, y, w)
-        query = [[RobotCodes.TARGET_POSITION_ABSOLUTE, td3p]]
+    def set_pos_absolute(self, x, y, w, acc=None, dec=None, vel_xy=None, vel_w=None):   #絶対位置の設定
+        logger.debug("set_pos_absolute")    #履歴を残す。
+        td3p = RobotValueTypes[RobotCodes.TARGET_POSITION_ABSOLUTE](x, y, w)    #絶対値データの作成
+        query = [[RobotCodes.TARGET_POSITION_ABSOLUTE, td3p]]   #リストの作成
         if acc is not None:
-            acc = RobotValueTypes[RobotCodes.ACCELERATION_TIME](acc, acc, acc)
-            query.append([RobotCodes.ACCELERATION_TIME, acc])
+            acc = RobotValueTypes[RobotCodes.ACCELERATION_TIME](acc, acc, acc)  #指定された加速度値を使い、データの生成
+            query.append([RobotCodes.ACCELERATION_TIME, acc])   #生成した加速度時間のデータを追加
         if dec is not None:
-            dec = RobotValueTypes[RobotCodes.DECELERATION_TIME](dec, dec, dec)
-            query.append([RobotCodes.DECELERATION_TIME, dec])
+            dec = RobotValueTypes[RobotCodes.DECELERATION_TIME](dec, dec, dec)  #指定された減速度値を使い、データの生成
+            query.append([RobotCodes.DECELERATION_TIME, dec])   #データの追加
         if vel_xy is not None:
-            vel = RobotValueTypes[RobotCodes.POSITION_DRIVE_STD_SPEED](vel_xy)
+            vel = RobotValueTypes[RobotCodes.POSITION_DRIVE_STD_SPEED](vel_xy)  #xy方向の速度値を使い、データの生成
             query.append([RobotCodes.POSITION_DRIVE_STD_SPEED, vel])
         if vel_w is not None:
-            vel = RobotValueTypes[RobotCodes.POSITION_DRIVE_ROT_SPEED](vel_w)
-            query.append([RobotCodes.POSITION_DRIVE_ROT_SPEED, vel])
+            vel = RobotValueTypes[RobotCodes.POSITION_DRIVE_ROT_SPEED](vel_w)   #回転速度値を使い、データの生成
+            query.append([RobotCodes.POSITION_DRIVE_ROT_SPEED, vel])    #データの追加
 
-        logger.debug(self.byteList_to_string(self.tx(query)))
-        return self.rx()
+        logger.debug(self.byteList_to_string(self.tx(query)))   #データをバイト列に変換し、履歴を残す
+        return self.rx()    #応答を受け取る
 
     # read mode not implemented
     def set_pos_relative(self, x, y, w, acc=None, dec=None, vel_xy=None, vel_w=None):
@@ -558,11 +559,14 @@ class robot:
         if life_time is not None:
             life = RobotValueTypes[RobotCodes.MOVING_DRIVE_LIFE_TIME](life_time)
             query.append([RobotCodes.MOVING_DRIVE_LIFE_TIME, life])
-
+        if drive_mode is not None:
+            mode = RobotValueTypes[RobotCodes.DRIVE_MODE](drive_mode)
+            query.append([RobotCodes.DRIVE_MODE, mode])
+            
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
 
-    def set_vel_relative(self, vx, vy, vw, acc=None, dec=None, life_time=None):
+    def set_vel_relative(self, vx, vy, vw, acc=None, dec=None, life_time=None, drive_mode=None):
         logger.debug("set_vel_relative")
         td3p = RobotValueTypes[RobotCodes.MOVING_SPEED_RELATIVE](vx, vy, vw)
         query = [[RobotCodes.MOVING_SPEED_RELATIVE, td3p]]
@@ -575,6 +579,9 @@ class robot:
         if life_time is not None:
             life = RobotValueTypes[RobotCodes.MOVING_DRIVE_LIFE_TIME](life_time)
             query.append([RobotCodes.MOVING_DRIVE_LIFE_TIME, life])
+        if drive_mode is not None:
+            mode = RobotValueTypes[RobotCodes.DRIVE_MODE](drive_mode)
+            query.append([RobotCodes.DRIVE_MODE, mode])
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
 
