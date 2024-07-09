@@ -73,7 +73,7 @@ class RobotCodes(Enum):
     POSITION_DRIVE_ROT_SPEED = 0x031F
     MOVING_DRIVE_LIFE_TIME = 0x0323
     AEB_MODE = 0x0325
-
+    DRIVE_MODE = 0x0401
 
     KINEMATICS = 0xFF02
     KINEMATICS_TRANS = 0xFF04
@@ -115,6 +115,7 @@ RobotValueTypes = {
     RobotCodes.POSITION_DRIVE_ROT_SPEED: np.float32,
     RobotCodes.MOVING_DRIVE_LIFE_TIME: np.uint32,
     RobotCodes.AEB_MODE: np.uint8,
+    RobotCodes.DRIVE_MODE: np.uint8,
 
     RobotCodes.KINEMATICS: TriOrbDriveMatrix,
     RobotCodes.KINEMATICS_TRANS: TriOrbDriveMatrix,
@@ -504,7 +505,7 @@ class robot:
             return False
 
     # read mode not implemented
-    def set_pos_absolute(self, x, y, w, acc=None, dec=None, vel_xy=None, vel_w=None):
+    def set_pos_absolute(self, x, y, w, acc=None, dec=None, vel_xy=None, vel_w=None):   
         logger.debug("set_pos_absolute")
         td3p = RobotValueTypes[RobotCodes.TARGET_POSITION_ABSOLUTE](x, y, w)
         query = [[RobotCodes.TARGET_POSITION_ABSOLUTE, td3p]]
@@ -547,7 +548,7 @@ class robot:
 
     def set_vel_absolute(self, vx, vy, vw, acc=None, dec=None, life_time=None):  # read mode not implemented
         logger.debug("set_vel_absolute")
-        td3p = RobotValueTypes[RobotCodes.MOVING_SPEED_ABSOLUTE](x, y, w)
+        td3p = RobotValueTypes[RobotCodes.MOVING_SPEED_ABSOLUTE](vx, vy, vw)
         query = [[RobotCodes.MOVING_SPEED_ABSOLUTE, td3p]]
         if acc is not None:
             acc = RobotValueTypes[RobotCodes.ACCELERATION_TIME](acc, acc, acc)
@@ -558,11 +559,10 @@ class robot:
         if life_time is not None:
             life = RobotValueTypes[RobotCodes.MOVING_DRIVE_LIFE_TIME](life_time)
             query.append([RobotCodes.MOVING_DRIVE_LIFE_TIME, life])
-
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
 
-    def set_vel_relative(self, vx, vy, vw, acc=None, dec=None, life_time=None):
+    def set_vel_relative(self, vx, vy, vw, acc=None, dec=None, life_time=None, drive_mode=None):
         logger.debug("set_vel_relative")
         td3p = RobotValueTypes[RobotCodes.MOVING_SPEED_RELATIVE](vx, vy, vw)
         query = [[RobotCodes.MOVING_SPEED_RELATIVE, td3p]]
@@ -575,6 +575,9 @@ class robot:
         if life_time is not None:
             life = RobotValueTypes[RobotCodes.MOVING_DRIVE_LIFE_TIME](life_time)
             query.append([RobotCodes.MOVING_DRIVE_LIFE_TIME, life])
+        if drive_mode is not None:
+            mode = RobotValueTypes[RobotCodes.DRIVE_MODE](drive_mode)
+            query.append([RobotCodes.DRIVE_MODE, mode])
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
 
