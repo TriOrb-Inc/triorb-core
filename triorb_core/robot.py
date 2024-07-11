@@ -73,6 +73,7 @@ class RobotCodes(Enum):
     POSITION_DRIVE_ROT_SPEED = 0x031F
     MOVING_DRIVE_LIFE_TIME = 0x0323
     AEB_MODE = 0x0325
+    VELOCITY_CONTROLLER = 0x0327
     DRIVE_MODE = 0x0401
 
     KINEMATICS = 0xFF02
@@ -115,6 +116,7 @@ RobotValueTypes = {
     RobotCodes.POSITION_DRIVE_ROT_SPEED: np.float32,
     RobotCodes.MOVING_DRIVE_LIFE_TIME: np.uint32,
     RobotCodes.AEB_MODE: np.uint8,
+    RobotCodes.VELOCITY_CONTROLLER: np.uint8,
     RobotCodes.DRIVE_MODE: np.uint8,
 
     RobotCodes.KINEMATICS: TriOrbDriveMatrix,
@@ -716,6 +718,10 @@ class robot:
         logger.debug(self.byteList_to_string(self.tx([[RobotCodes.SET_MOTOR_PARAMS, smp]])))
         return self.rx()
 
+    def vel_level(self, param):
+        logger.debug("vel_level")
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.VELOCITY_CONTROLLER, param]])))
+        return self.rx()
 
     # def set_torque(self, param):
     #    logger.debug("set_torque")
