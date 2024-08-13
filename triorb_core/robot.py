@@ -222,8 +222,6 @@ class robot:
             return struct.pack('<f', val)
         # if isinstance(val, np.uint16):
         #    return val.to_bytes(2, UART_ENDIAN)
-        # if isinstance(val, np.uint8):
-        #    return val.to_bytes(1, UART_ENDIAN)
         self._print_error(type(val))
         raise Exception("Unknown type")
 
@@ -277,8 +275,6 @@ class robot:
             return val[0]
         # if isinstance(val, np.uint16):
         #    return val.to_bytes(2, UART_ENDIAN)
-        # if isinstance(val, np.uint8):
-        #    return val.to_bytes(1, UART_ENDIAN)
         self._print_error(type(val))
         raise Exception("Unknown type")
 
