@@ -119,6 +119,8 @@ RobotValueTypes = {
     RobotCodes.DRIVE_MODE: np.uint8,
     RobotCodes.SET_LIFTER_MOVE: np.int32,
 
+    RobotCodes.INITIALIZE_CONFIG: np.uint8,
+
     RobotCodes.KINEMATICS: TriOrbDriveMatrix,
     RobotCodes.KINEMATICS_TRANS: TriOrbDriveMatrix,
 }
@@ -726,6 +728,14 @@ class robot:
         #smp = RobotValueTypes[RobotCodes.SET_MOTOR_PARAMS]( lpf, filter_t, pos_p_gain, speed_p_gain, speed_i_gain )
         smp = RobotValueTypes[RobotCodes.SET_MOTOR_PARAMS]( lpf, filter_t, pos_p_gain, speed_p_gain, speed_i_gain, torque_filter, speed_feedforward, stiffness )
         logger.debug(self.byteList_to_string(self.tx([[RobotCodes.SET_MOTOR_PARAMS, smp]])))
+        return self.rx()
+
+
+
+    def initialize_config(self):
+        logger.debug("initialize_config")
+        command = [ [RobotCodes.INITIALIZE_CONFIG, 0x00] ]
+        logger.debug(self.byteList_to_string(self.tx( command )))
         return self.rx()
 
 
