@@ -16,6 +16,9 @@
 # limitations under the License.
 # ==============================================================================
 
+# 1.3.1: ポート探索時のタイムアウト追加
+__version__ = "1.3.1"
+
 from .alarms import get_alarm_name
 from .core_types import *
 import time
@@ -127,10 +130,10 @@ RobotValueTypes = {
 
 
 class robot:
+
     def __init__(self, port=None, node=None, port_find_time=None):
         self._uart = None
         self.node = node
-        self.version = "1.0.1" # AEB, LIFETIME追加後から入れた
         if port is None:
             port = self.find_port(port_find_time)
         if port is None:
