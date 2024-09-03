@@ -127,17 +127,17 @@ RobotValueTypes = {
 
 
 class robot:
-    def __init__(self, port=None, node=None):
+    def __init__(self, port=None, node=None, port_find_time=None):
+        self._uart = None
         self.node = node
         self.version = "1.0.1" # AEB, LIFETIME追加後から入れた
         if port is None:
-            port = self.find_port()
+            port = self.find_port(port_find_time)
         if port is None:
             raise Exception("Please set UART port path/name")
         print(port)
         self._expected_response_values = []
         self._expected_response_size = []
-        self._uart = None
         self._uart = serial.Serial(
             port=port,
             baudrate=UART_BAUDRATE,
@@ -172,7 +172,8 @@ class robot:
     def codes(self):
         return RobotCodes
 
-    def find_port(self):
+    def find_port(self, timeout=None):
+        st = time.time()
         while 1:
             ports = [dev for dev in serial.tools.list_ports.comports()
                      if "TriOrb CDC" in dev.description]
@@ -180,6 +181,9 @@ class robot:
                 return p.device
             self._print_info("waiting triorb pico..")
             time.sleep(1)
+            if timeout is not None:
+                if time.time() - st > timeout:
+                    break
         return None
         # ports = list(serial.tools.list_ports.comports())
         # for p in ports:
