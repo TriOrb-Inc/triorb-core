@@ -221,3 +221,22 @@ r = triorb_core.robot()
 r.wakeup()
 r.set_odometry(0,0,90) # Sets the current posture as the odometry origin +90deg.
 ```
+
+### triorb_core.robot.set_lifter_move(pos)
+Set the position of the lifter.
+#### Parameters:
+- pos - The lifter position will be set as follows: 1 for up, -1 for down, and 0 for a stop.
+#### Returns: 
+0: Timeout (approximately 150 ms elapsed)
+1: Lift enabled → Lift up/down operation is possible
+2: One or more lifter motors are not energized.
+3: One or more lifter motors have encountered an error. (Generally, a robot restart or turning off and on the excitation is required to resolve this.)
+4: Failed to acquire motor status. → Please execute set_lifter_move again.
+
+```python
+import triorb_core
+r = triorb_core.robot()
+r.wakeup()
+if r.set_lifter_move(1)[0] == 1:
+  print("The lifter is starting to go up.")
+```
