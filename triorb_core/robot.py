@@ -82,7 +82,7 @@ class RobotCodes(Enum):
 class RobotValues(Enum):
     ROBOT_SUSPENSION = 0x01  # 停止（励磁OFF）
     ROBOT_STARTUP = 0x02  # 起動（励磁ON）
-    OTA_REBOOT = 0xef  # OTAリブート
+    OTA_REBOOT = 0x03  # OTAリブート
 
 
 RobotValueTypes = {
@@ -420,7 +420,7 @@ class robot:
         logger.debug("OTA Reboot")
         logger.debug(self.byteList_to_string(
             self.tx([[RobotCodes.STARTUP_SUSPENSION, RobotValues.OTA_REBOOT]])))
-        return self.rx()
+        return [RobotCodes.STARTUP_SUSPENSION, RobotValues.OTA_REBOOT]
 
     def join(self):
         logger.debug("join")
