@@ -16,6 +16,9 @@
 # limitations under the License.
 # ==============================================================================
 
+# 1.3.1: ポート探索時のタイムアウト追加
+__version__ = "1.3.1"
+
 from .alarms import get_alarm_name
 from .core_types import *
 import time
@@ -74,6 +77,7 @@ class RobotCodes(Enum):
     MOVING_DRIVE_LIFE_TIME = 0x0323
     AEB_MODE = 0x0325
     DRIVE_MODE = 0x0401
+    SET_LIFTER_MOVE = 0x0403
 
     KINEMATICS = 0xFF02
     KINEMATICS_TRANS = 0xFF04
@@ -117,6 +121,9 @@ RobotValueTypes = {
     RobotCodes.MOVING_DRIVE_LIFE_TIME: np.uint32,
     RobotCodes.AEB_MODE: np.uint8,
     RobotCodes.DRIVE_MODE: np.uint8,
+    RobotCodes.SET_LIFTER_MOVE: np.int32,
+
+    RobotCodes.INITIALIZE_CONFIG: np.uint8,
 
     RobotCodes.KINEMATICS: TriOrbDriveMatrix,
     RobotCodes.KINEMATICS_TRANS: TriOrbDriveMatrix,
@@ -124,17 +131,17 @@ RobotValueTypes = {
 
 
 class robot:
-    def __init__(self, port=None, node=None):
+
+    def __init__(self, port=None, node=None, port_find_time=None):
+        self._uart = None
         self.node = node
-        self.version = "1.0.1" # AEB, LIFETIME追加後から入れた
         if port is None:
-            port = self.find_port()
+            port = self.find_port(port_find_time)
         if port is None:
             raise Exception("Please set UART port path/name")
         print(port)
         self._expected_response_values = []
         self._expected_response_size = []
-        self._uart = None
         self._uart = serial.Serial(
             port=port,
             baudrate=UART_BAUDRATE,
@@ -169,7 +176,8 @@ class robot:
     def codes(self):
         return RobotCodes
 
-    def find_port(self):
+    def find_port(self, timeout=None):
+        st = time.time()
         while 1:
             ports = [dev for dev in serial.tools.list_ports.comports()
                      if "TriOrb CDC" in dev.description]
@@ -177,6 +185,9 @@ class robot:
                 return p.device
             self._print_info("waiting triorb pico..")
             time.sleep(1)
+            if timeout is not None:
+                if time.time() - st > timeout:
+                    break
         return None
         # ports = list(serial.tools.list_ports.comports())
         # for p in ports:
@@ -211,13 +222,16 @@ class robot:
             return val.to_bytes(1, UART_ENDIAN)
         if isinstance(val, np.uint32):
             return int(val).to_bytes(4, UART_ENDIAN)
+        if isinstance(val, np.int32):
+            return int(val).to_bytes(4, UART_ENDIAN, signed = True)
         if isinstance(val, np.uint16):
             return int(val).to_bytes(2, UART_ENDIAN)
+        if isinstance(val, np.uint8):
+           return int(val).to_bytes(1, UART_ENDIAN)
         if isinstance(val, np.float32):
             return struct.pack('<f', val)
-        if isinstance(val, np.uint8):
-            return struct.pack('<B', val)
-
+        # if isinstance(val, np.uint16):
+        #    return val.to_bytes(2, UART_ENDIAN)
         self._print_error(type(val))
         raise Exception("Unknown type")
 
@@ -261,6 +275,8 @@ class robot:
             return struct.unpack("<i", val)[0]
         if isinstance(dtype, np.uint32):
             return struct.unpack('<I', val)[0]
+        if isinstance(dtype, np.int32):
+            return struct.unpack('<i', val)[0]
         if isinstance(dtype, np.uint16):
             return struct.unpack('<H', val)[0]
         if isinstance(dtype, np.float32):
@@ -269,8 +285,6 @@ class robot:
             return val[0]
         # if isinstance(val, np.uint16):
         #    return val.to_bytes(2, UART_ENDIAN)
-        # if isinstance(val, np.uint8):
-        #    return val.to_bytes(1, UART_ENDIAN)
         self._print_error(type(val))
         raise Exception("Unknown type")
 
@@ -587,6 +601,13 @@ class robot:
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
 
+    def set_lifter_move(self, pos):
+        logger.debug("set_lifter_move")
+        td3p = RobotValueTypes[RobotCodes.SET_LIFTER_MOVE](pos)
+        query = [[RobotCodes.SET_LIFTER_MOVE, td3p]]
+        logger.debug(self.byteList_to_string(self.tx(query)))
+        return self.rx()
+    
     def get_info(self):
         logger.debug("get_info")
         val = RobotValueTypes[RobotCodes.SYSTEM_INFORMATION]()
@@ -721,6 +742,14 @@ class robot:
         #smp = RobotValueTypes[RobotCodes.SET_MOTOR_PARAMS]( lpf, filter_t, pos_p_gain, speed_p_gain, speed_i_gain )
         smp = RobotValueTypes[RobotCodes.SET_MOTOR_PARAMS]( lpf, filter_t, pos_p_gain, speed_p_gain, speed_i_gain, torque_filter, speed_feedforward, stiffness )
         logger.debug(self.byteList_to_string(self.tx([[RobotCodes.SET_MOTOR_PARAMS, smp]])))
+        return self.rx()
+
+
+
+    def initialize_config(self):
+        logger.debug("initialize_config")
+        command = [ [RobotCodes.INITIALIZE_CONFIG, 0x00] ]
+        logger.debug(self.byteList_to_string(self.tx( command )))
         return self.rx()
 
 
