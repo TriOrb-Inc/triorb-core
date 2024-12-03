@@ -1,4 +1,4 @@
-# triorb-core
+# 制御ECU Python API
 
 ## Installation
 ```
