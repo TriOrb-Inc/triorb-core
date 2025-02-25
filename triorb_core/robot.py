@@ -53,6 +53,7 @@ class RobotCodes(Enum):
     POWER_SUPPLY_VOLTAGE = 0x0109
     DRIVING_POWER = 0x010B
     GET_POSE = 0x010D
+    GET_LIFTER_POSITION = 0x0111
     ERROR_RESET = 0x0201
     ORIGIN_RESET = 0x0203
     SET_POSE = 0x0205
@@ -98,6 +99,7 @@ RobotValueTypes = {
     RobotCodes.POWER_SUPPLY_VOLTAGE: np.float32,
     RobotCodes.DRIVING_POWER: np.float32,
     RobotCodes.GET_POSE: TriOrbDrive3Pose,
+    RobotCodes.GET_LIFTER_POSITION: np.uint8,
     RobotCodes.ERROR_RESET: np.uint8,
     RobotCodes.ORIGIN_RESET: np.uint8,
     RobotCodes.SET_POSE: TriOrbDrive3Pose,
@@ -605,6 +607,13 @@ class robot:
         logger.debug("set_lifter_move")
         td3p = RobotValueTypes[RobotCodes.SET_LIFTER_MOVE](pos)
         query = [[RobotCodes.SET_LIFTER_MOVE, td3p]]
+        logger.debug(self.byteList_to_string(self.tx(query)))
+        return self.rx()
+
+    def get_lifter_pos(self):
+        logger.debug("get_lifter_pos")
+        val = RobotValueTypes[RobotCodes.GET_LIFTER_POSITION]()
+        query = [[RobotCodes.GET_LIFTER_POSITION, val]]
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
     

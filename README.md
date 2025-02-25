@@ -240,3 +240,39 @@ r.wakeup()
 if r.set_lifter_move(1)[0] == 1:
   print("The lifter is starting to go up.")
 ```
+
+### triorb_core.robot.get_lifter_pos()
+Get the position of the lifter.
+#### Parameters:
+- None
+#### Returns: 
+- 0: Unknow (Lifter has never been operated since it was turned on OR lifter stops due to any error)
+- 1: Lift stop.
+- 2: Lift is upper limit. (It will take a few seconds for the value to change.)
+- 3: Lift is lower limit. (It will take a few seconds for the value to change.)
+- 4: Lift is moving up.
+- 5: Lift is moving down.
+
+```python
+import triorb_core
+import time
+r = triorb_core.robot()
+r.wakeup()
+time.sleep(2)
+r.set_lifter_move(1) # lift up start
+time.sleep(1)
+
+limit_sec = 30
+for i in range(limit_sec):
+  ret = r.get_lifter_pos()[0]
+  if ret == 2:
+    print("lift up is done.")
+    break
+  elif ret == 4:
+    print("lift is moving up.")
+  else:
+    print("lift up is failed.")
+    break
+  time.sleep(1)
+
+```
