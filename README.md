@@ -281,9 +281,7 @@ for i in range(limit_sec):
 ### How to get motor error
 The robot periodically(every 2 seconds) checks for errors and resets them if any are found. <br>
 To check for errors, you must run the get error command before the reset.
-#### Returns: 
-#### Return type: list of response
-#### Usage:
+#### example:
 ```python
 import triorb_core
 import time
