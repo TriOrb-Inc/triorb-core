@@ -448,7 +448,7 @@ class robot:
             # 全てのmoveが0になるまでループ. 本来ならin_posを使いたいが, 時間経過でoffになるので信頼性が低い
             if (data[0].in_pos and data[1].in_pos and data[2].in_pos):
                 break
-            if data[0].success:
+            if data[2].success:
                 if not (data[0].move or data[1].move or data[2].move):
                     break
             time.sleep(1.0)
