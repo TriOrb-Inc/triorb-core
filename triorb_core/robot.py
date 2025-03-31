@@ -50,6 +50,7 @@ class RobotCodes(Enum):
     SENSOR_INFORMATION = 0x0005
     ERROR_INFORMATION = 0x0007
     OPERATING_STATUS = 0x0009
+    ERROR_HISTORY = 0x0011
     POWER_SUPPLY_VOLTAGE = 0x0109
     DRIVING_POWER = 0x010B
     GET_POSE = 0x010D
@@ -96,6 +97,7 @@ RobotValueTypes = {
     RobotCodes.SENSOR_INFORMATION: TriOrbBaseSensor,
     RobotCodes.ERROR_INFORMATION: TriOrbBaseError,
     RobotCodes.OPERATING_STATUS: TriOrbBaseState,
+    RobotCodes.ERROR_HISTORY: TriOrbErrorHistory,
     RobotCodes.POWER_SUPPLY_VOLTAGE: np.float32,
     RobotCodes.DRIVING_POWER: np.float32,
     RobotCodes.GET_POSE: TriOrbDrive3Pose,
@@ -220,6 +222,8 @@ class robot:
             return val.to_bytes()
         if isinstance(val, TriOrbBaseState):
             return val.to_bytes()
+        if isinstance(val, TriOrbErrorHistory):
+            return val.to_bytes()
         if isinstance(val, int):
             return val.to_bytes(1, UART_ENDIAN)
         if isinstance(val, np.uint32):
@@ -272,6 +276,9 @@ class robot:
             return dtype
         if isinstance(dtype, TriOrbBaseState):
             dtype.from_bytes(val, True)
+            return dtype
+        if isinstance(dtype, TriOrbErrorHistory):
+            dtype.from_bytes(val)
             return dtype
         if isinstance(dtype, int):
             return struct.unpack("<i", val)[0]
@@ -640,6 +647,15 @@ class robot:
             self.tx([[RobotCodes.SENSOR_INFORMATION, val]])))
         values = self.rx()
         return values[0]
+
+    def get_error_history(self):
+        logger.debug("get_error_history")
+        val = RobotValueTypes[RobotCodes.ERROR_HISTORY]()
+        logger.debug(self.byteList_to_string(
+            self.tx([[RobotCodes.ERROR_HISTORY, val]])))
+        values = self.rx()
+        return values[0]
+
 
     def get_motor_status(self, params=["error", "state", "voltage", "power"], _id=ALL_MOTOR_LOCAL_IDS):
 
