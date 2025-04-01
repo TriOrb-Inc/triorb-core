@@ -343,15 +343,17 @@ class robot:
         buf = b""
         timeout_count = 0
         while (True):
+            lb = len(buf)
             # buf += self._uart.readline() # 0x0aまで読み込み
             buf += self._uart.read()
-            if len(buf) < 2:
+            if len(buf) == lb:
                 print(".", end="")
                 timeout_count += 1
                 if timeout_count > 20:
                     self._uart.reset_output_buffer()
                     self._uart.reset_input_buffer()
-                    return 0
+                    print("[ERROR] timeout. May be send wrong packet.")
+                    return buf
                 continue
             if len(buf) < expected_buf_length:
                 continue
