@@ -631,33 +631,28 @@ class robot:
         val = RobotValueTypes[RobotCodes.SYSTEM_INFORMATION]()
         logger.debug(self.byteList_to_string(
             self.tx([[RobotCodes.SYSTEM_INFORMATION, val]])))
-        values = self.rx()
-        return values[0]
+        return self.rx()
 
     def get_device_status(self):
         logger.debug("get_device_status")
         val = RobotValueTypes[RobotCodes.DEVICE_STATUS]()
         logger.debug(self.byteList_to_string(
             self.tx([[RobotCodes.DEVICE_STATUS, val]])))
-        values = self.rx()
-        return values[0]
+        return self.rx()
 
     def get_sensor_info(self):
         logger.debug("get_sensor_info")
         val = RobotValueTypes[RobotCodes.SENSOR_INFORMATION]()
         logger.debug(self.byteList_to_string(
             self.tx([[RobotCodes.SENSOR_INFORMATION, val]])))
-        values = self.rx()
-        return values[0]
+        return self.rx()
 
     def get_error_history(self):
         logger.debug("get_error_history")
         val = RobotValueTypes[RobotCodes.ERROR_HISTORY]()
         logger.debug(self.byteList_to_string(
             self.tx([[RobotCodes.ERROR_HISTORY, val]])))
-        values = self.rx()
-        return values[0]
-
+        return self.rx()
 
     def get_motor_status(self, params=["error", "state", "voltage", "power"], _id=ALL_MOTOR_LOCAL_IDS):
 
