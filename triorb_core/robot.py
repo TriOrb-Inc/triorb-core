@@ -50,6 +50,7 @@ class RobotCodes(Enum):
     SENSOR_INFORMATION = 0x0005
     ERROR_INFORMATION = 0x0007
     OPERATING_STATUS = 0x0009
+    ERROR_HISTORY = 0x0011
     POWER_SUPPLY_VOLTAGE = 0x0109
     DRIVING_POWER = 0x010B
     GET_POSE = 0x010D
@@ -96,6 +97,7 @@ RobotValueTypes = {
     RobotCodes.SENSOR_INFORMATION: TriOrbBaseSensor,
     RobotCodes.ERROR_INFORMATION: TriOrbBaseError,
     RobotCodes.OPERATING_STATUS: TriOrbBaseState,
+    RobotCodes.ERROR_HISTORY: TriOrbErrorHistory,
     RobotCodes.POWER_SUPPLY_VOLTAGE: np.float32,
     RobotCodes.DRIVING_POWER: np.float32,
     RobotCodes.GET_POSE: TriOrbDrive3Pose,
@@ -220,6 +222,8 @@ class robot:
             return val.to_bytes()
         if isinstance(val, TriOrbBaseState):
             return val.to_bytes()
+        if isinstance(val, TriOrbErrorHistory):
+            return val.to_bytes()
         if isinstance(val, int):
             return val.to_bytes(1, UART_ENDIAN)
         if isinstance(val, np.uint32):
@@ -272,6 +276,9 @@ class robot:
             return dtype
         if isinstance(dtype, TriOrbBaseState):
             dtype.from_bytes(val, True)
+            return dtype
+        if isinstance(dtype, TriOrbErrorHistory):
+            dtype.from_bytes(val)
             return dtype
         if isinstance(dtype, int):
             return struct.unpack("<i", val)[0]
@@ -336,15 +343,17 @@ class robot:
         buf = b""
         timeout_count = 0
         while (True):
+            lb = len(buf)
             # buf += self._uart.readline() # 0x0aまで読み込み
             buf += self._uart.read()
-            if len(buf) < 2:
+            if len(buf) == lb:
                 print(".", end="")
                 timeout_count += 1
                 if timeout_count > 20:
                     self._uart.reset_output_buffer()
                     self._uart.reset_input_buffer()
-                    return 0
+                    print("[ERROR] timeout. May be send wrong packet.")
+                    return buf
                 continue
             if len(buf) < expected_buf_length:
                 continue
@@ -622,24 +631,28 @@ class robot:
         val = RobotValueTypes[RobotCodes.SYSTEM_INFORMATION]()
         logger.debug(self.byteList_to_string(
             self.tx([[RobotCodes.SYSTEM_INFORMATION, val]])))
-        values = self.rx()
-        return values[0]
+        return self.rx()
 
     def get_device_status(self):
         logger.debug("get_device_status")
         val = RobotValueTypes[RobotCodes.DEVICE_STATUS]()
         logger.debug(self.byteList_to_string(
             self.tx([[RobotCodes.DEVICE_STATUS, val]])))
-        values = self.rx()
-        return values[0]
+        return self.rx()
 
     def get_sensor_info(self):
         logger.debug("get_sensor_info")
         val = RobotValueTypes[RobotCodes.SENSOR_INFORMATION]()
         logger.debug(self.byteList_to_string(
             self.tx([[RobotCodes.SENSOR_INFORMATION, val]])))
-        values = self.rx()
-        return values[0]
+        return self.rx()
+
+    def get_error_history(self):
+        logger.debug("get_error_history")
+        val = RobotValueTypes[RobotCodes.ERROR_HISTORY]()
+        logger.debug(self.byteList_to_string(
+            self.tx([[RobotCodes.ERROR_HISTORY, val]])))
+        return self.rx()
 
     def get_motor_status(self, params=["error", "state", "voltage", "power"], _id=ALL_MOTOR_LOCAL_IDS):
 
