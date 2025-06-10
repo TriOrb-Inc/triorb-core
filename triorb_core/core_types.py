@@ -17,9 +17,11 @@
 # ==============================================================================
 
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import numpy as np
 import struct
+
+MAX_ERROR_HIST = 5
 
 @dataclass
 class TriOrbBaseSystem:
@@ -32,12 +34,13 @@ class TriOrbBaseSystem:
     
 @dataclass
 class TriOrbBaseDevice:
-    age: int = 0
-    weight: int = 0
+    max_vx: np.float32 = 0
+    max_vy: np.float32 = 0
+    max_vw: np.float32 = 0
     def to_bytes(self) -> bytes:
-        return struct.pack('<ii', self.age, self.weight)
+        return struct.pack('<fff', self.max_vx, self.max_vy, self.max_vw)
     def from_bytes(self, arr):
-        self.age, self.weight = struct.unpack("<ii", arr)
+        self.max_vx, self.max_vy, self.max_vw = struct.unpack("<fff", arr)
 
 @dataclass
 class TriOrbBaseSensor:
@@ -57,6 +60,33 @@ class TriOrbBaseError:
     def from_bytes(self, arr):
         self.alarm, self.motor_id = struct.unpack("<BB", arr)
     
+
+@dataclass
+class TriOrbErrorStamped:
+    error: np.uint8 = 0
+    stamp: np.uint32 = 0
+    def to_bytes(self) -> bytes:
+        return struct.pack('<BI', self.error, self.stamp)
+    def from_bytes(self, arr):
+        self.error, self.stamp = struct.unpack("<BI", arr)
+
+@dataclass
+class TriOrbErrorHistory:
+    err1: TriOrbErrorStamped = field(default_factory=TriOrbErrorStamped) 
+    err2: TriOrbErrorStamped = field(default_factory=TriOrbErrorStamped) 
+    err3: TriOrbErrorStamped = field(default_factory=TriOrbErrorStamped) 
+    err4: TriOrbErrorStamped = field(default_factory=TriOrbErrorStamped) 
+    err5: TriOrbErrorStamped = field(default_factory=TriOrbErrorStamped) 
+    def to_bytes(self) -> bytes:
+        bt = b''
+        for e in [self.err1, self.err2, self.err3, self.err4, self.err5]:
+            bt += e.to_bytes()
+        return bt
+    def from_bytes(self, arr):
+        i=0
+        for e in [self.err1, self.err2, self.err3, self.err4, self.err5]:
+            e.from_bytes(arr[5*i:5*(i+1)])
+            i+=1
 
 @dataclass
 class TriOrbDriveUSS:
