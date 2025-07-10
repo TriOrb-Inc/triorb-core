@@ -75,6 +75,7 @@ class RobotCodes(Enum):
     POSITION_DRIVE_ROT_SPEED = 0x031F
     MOVING_DRIVE_LIFE_TIME = 0x0323
     AEB_MODE = 0x0325
+    VEL_LEVEL = 0x0327
     DRIVE_MODE = 0x0401
     SET_LIFTER_MOVE = 0x0403
 
@@ -121,6 +122,7 @@ RobotValueTypes = {
     RobotCodes.POSITION_DRIVE_ROT_SPEED: np.float32,
     RobotCodes.MOVING_DRIVE_LIFE_TIME: np.uint32,
     RobotCodes.AEB_MODE: np.uint8,
+    RobotCodes.VEL_LEVEL: np.uint8,
     RobotCodes.DRIVE_MODE: np.uint8,
     RobotCodes.SET_LIFTER_MOVE: np.int32,
 
@@ -754,6 +756,11 @@ class robot:
     def set_aeb(self, param):
         logger.debug("set_aeb")
         logger.debug(self.byteList_to_string(self.tx([[RobotCodes.AEB_MODE, param]])))
+        return self.rx()
+
+    def set_vel_level(self, param):
+        logger.debug("set_vel_level")
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.VEL_LEVEL, param]])))
         return self.rx()
 
     def set_motor_param(self, lpf=True, filter_t=1, pos_p_gain=10, speed_p_gain=100, speed_i_gain=1580, torque_filter=1000, speed_feedforward=80, stiffness=7):
