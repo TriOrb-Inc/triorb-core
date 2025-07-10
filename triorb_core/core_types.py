@@ -37,10 +37,13 @@ class TriOrbBaseDevice:
     max_vx: np.float32 = 0
     max_vy: np.float32 = 0
     max_vw: np.float32 = 0
+    min_vx: np.float32 = 0
+    min_vy: np.float32 = 0
+    min_vw: np.float32 = 0
     def to_bytes(self) -> bytes:
-        return struct.pack('<fff', self.max_vx, self.max_vy, self.max_vw)
+        return struct.pack('<ffffff', self.max_vx, self.max_vy, self.max_vw, self.min_vx, self.min_vy, self.min_vw)
     def from_bytes(self, arr):
-        self.max_vx, self.max_vy, self.max_vw = struct.unpack("<fff", arr)
+        self.max_vx, self.max_vy, self.max_vw, self.min_vx, self.min_vy, self.min_vw = struct.unpack("<ffffff", arr)
 
 @dataclass
 class TriOrbBaseSensor:
