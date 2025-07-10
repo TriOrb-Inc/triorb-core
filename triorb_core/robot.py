@@ -16,9 +16,6 @@
 # limitations under the License.
 # ==============================================================================
 
-# 1.3.1: ポート探索時のタイムアウト追加
-__version__ = "1.3.1"
-
 from .alarms import get_alarm_name
 from .core_types import *
 import time
