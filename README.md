@@ -12,8 +12,9 @@ import time
 import triorb_core
 r = triorb_core.robot("/dev/ttyACM0")
 r.wakeup()
+time.sleep(1.0) # Wait for excitation
 r.set_vel_relative(0.0, 0.1, 0.0, acc=1000)
-time.sleep(1.0)
+time.sleep(5.0)
 r.brake() # Stops after moving forward for 1 second at a speed of 0.1 m/s.
 r.sleep()
 ```
@@ -66,7 +67,7 @@ r.wakeup()
 r.sleep()
 ```
 
-### triorb_core.robot.set_vel_relative(vx, vy, vw, acc=None, dec=None)
+### triorb_core.robot.set_vel_relative(vx, vy, vw, acc=None, dec=None, life_time=None, drive_mode=None)
 Sets the movement speed based on the current robot posture. Note that the robot starts moving immediately after the setting.
 #### Parameters:
 - vx - Velocity in X-axis direction [m/s]
@@ -74,14 +75,21 @@ Sets the movement speed based on the current robot posture. Note that the robot 
 - vw - Rotation speed around Z-axis (Yaw rate) [rad/s]
 - acc - (optional) Acceleration time [ms]
 - dec - (optional) Deceleration time [ms]
+- life_time - (optional) Life time of this command [ms]
+- drive_mode - (optional) Motor's drive mode 
 #### Returns: 
 #### Return type: list of response
 #### Usage:
 ```python
+import time
 import triorb_core
 r = triorb_core.robot()
 r.wakeup()
+time.sleep(1.0)
 r.set_vel_relative(0.0, 0.1, 0.0, acc=1000) # The robot moves forward at a speed of 0.1m/s while accelerating for 1000ms.
+time.sleep(5.0)
+r.set_vel_relative(0.0, -0.1, 0.0, life_time=5000) # The robot will move backward for 5 seconds and then stop.
+time.sleep(10.0)
 ```
 
 ### triorb_core.robot.set_pos_relative(x, y, w, acc=None, dec=None, vel_xy=None, vel_w=None)
@@ -98,10 +106,13 @@ Set the amount of movement based on the current robot posture. Note that the mov
 #### Return type: list of response
 #### Usage:
 ```python
+import time
 import triorb_core
 r = triorb_core.robot()
 r.wakeup()
+time.sleep(1.0)
 r.set_pos_absolute(-1.0, 0.5, 0.0, vel_xy=0.2) # Moves sideways -1m, forward 0.5m, at a speed of 0.2m/s.
+time.sleep(3.0)
 ```
 
 ### triorb_core.robot.set_vel_absolute(vx, vy, vw, acc=None, dec=None)
@@ -140,9 +151,11 @@ Set the amount of movement with respect to the odometry origin. Note that the mo
 Wait until the robot movement is completed. Note that this function only works after the set_pos function is executed.
 #### Usage:
 ```python
+import time
 import triorb_core
 r = triorb_core.robot()
 r.wakeup()
+time.sleep(1.0)
 r.set_pos_relative(0.0, 0.5, 0.0)
 r.join()
 print("Done.") # "Done." is displayed when the forward movement of 0.5m is completed.
@@ -158,6 +171,7 @@ import time
 import triorb_core
 r = triorb_core.robot()
 r.wakeup()
+time.sleep(1.0)
 r.set_vel_relative(0.0, 0.1, 0.0)
 time.sleep(1.0)
 r.brake() # Stops after moving forward for 1 second at a speed of 0.1 m/s.
@@ -278,16 +292,16 @@ for i in range(limit_sec):
 ```
 
 
-### How to get motor error
+### triorb_core.robot.get_error_history()
 The robot periodically(every 2 seconds) checks for errors and resets them if any are found. <br>
-To check for errors, you must run the get error command before the reset.
+Up to five errors will be retained.
+#### Parameters:
+- None
+#### Returns: 
+A combination of the error ID and the time(Counting from start-up) it occurred.
 #### example:
 ```python
 import triorb_core
-import time
 r = triorb_core.robot()
-while True:
-    ret = r.get_motor_status(params=["error"], _id=[1,2,3]))
-    print(ret)
-    time.sleep(1.0)
+print(r.get_error_history())
 ```
