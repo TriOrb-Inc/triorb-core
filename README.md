@@ -15,7 +15,7 @@ r.wakeup()
 time.sleep(1.0) # Wait for excitation
 r.set_vel_relative(0.0, 0.1, 0.0, acc=1000)
 time.sleep(5.0)
-r.brake() # Stops after moving forward for 1 second at a speed of 0.1 m/s.
+r.brake() # Stops after moving forward for 5 second at a speed of 0.1 m/s.
 r.sleep()
 ```
 
