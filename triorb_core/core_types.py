@@ -133,7 +133,7 @@ class TriOrbBaseState:
     success: bool = 0
 
     emergency: bool = 0
-    flag1: bool = 0
+    disable_gamepad: bool = 0
     flag2: bool = 0
     flag3: bool = 0
     flag4: bool = 0
@@ -179,6 +179,7 @@ class TriOrbBaseState:
             self.success= (state & 0b10000000) > 0
 
             self.emergency = (state2 & 0b00000001) > 0
+            self.disable_gamepad = (state2 & 0b00000010) > 0
         else:
             self.btn_y  = (state & 0b10000000) > 0
             self.btn_b  = (state & 0b01000000) > 0
@@ -190,6 +191,7 @@ class TriOrbBaseState:
             self.success= (state & 0b00000001) > 0
 
             self.emergency = (state2 & 0b10000000) > 0
+            self.disable_gamepad = (state2 & 0b01000000) > 0
 
         if self.success==0:
             print("motor ID{} failed to read status".format(self.motor_id))

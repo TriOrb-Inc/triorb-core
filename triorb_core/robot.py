@@ -79,6 +79,8 @@ class RobotCodes(Enum):
     DRIVE_MODE = 0x0401
     SET_LIFTER_MOVE = 0x0403
 
+    DISABLE_GAMEPAD = 0x0501
+
     KINEMATICS = 0xFF02
     KINEMATICS_TRANS = 0xFF04
 
@@ -127,6 +129,8 @@ RobotValueTypes = {
     RobotCodes.SET_LIFTER_MOVE: np.int32,
 
     RobotCodes.INITIALIZE_CONFIG: np.uint8,
+    
+    RobotCodes.DISABLE_GAMEPAD: np.uint8,
 
     RobotCodes.KINEMATICS: TriOrbDriveMatrix,
     RobotCodes.KINEMATICS_TRANS: TriOrbDriveMatrix,
@@ -786,6 +790,11 @@ class robot:
     #    logger.debug(self.byteList_to_string(self.tx([[code, val ]])))
     #    return self.rx()[0]
 
+    def set_gamepad_disable(self, param):
+        logger.debug("set_gamepad_disable")
+        logger.debug(self.byteList_to_string(self.tx([[RobotCodes.DISABLE_GAMEPAD, param]])))
+        return self.rx()
+    
     def close_serial(self):
         self._uart.close()
 
