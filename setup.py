@@ -20,7 +20,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='triorb_core',
-    version='1.3.4',
+    version='1.3.5',
     install_requires=["numpy", "pyserial"],
     packages=find_packages()
 )
