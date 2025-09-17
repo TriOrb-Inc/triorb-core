@@ -776,16 +776,12 @@ class robot:
         logger.debug(self.byteList_to_string(self.tx([[RobotCodes.SET_MOTOR_PARAMS, smp]])))
         return self.rx()
 
-    def shift_robot_center(self, x=0.0, y=0.0):
+    def shift_robot_center(self, x=0.0, y=0.0, towing_wheelbase_mm=None):
         logger.debug("shift_robot_center")
-        # if deg is None and rad is None:
-        #     w = 0.0
-        # elif deg is not None:
-        #     w = deg * np.pi / 180.0
-        # elif rad is not None:
-        #     w = rad
-        # td3p = RobotValueTypes[RobotCodes.ROBOT_CENTER](x, y, w)
-        td3p = RobotValueTypes[RobotCodes.ROBOT_CENTER](x, y, 0.0)
+        if towing_wheelbase_mm is not None:
+            td3p = RobotValueTypes[RobotCodes.ROBOT_CENTER](0.0, 0.0, towing_wheelbase_mm)
+        else:
+            td3p = RobotValueTypes[RobotCodes.ROBOT_CENTER](x, y, 0.0)
         query = [[RobotCodes.ROBOT_CENTER, td3p]]
         logger.debug(self.byteList_to_string(self.tx(query)))
         return self.rx()
