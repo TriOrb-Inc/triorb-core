@@ -76,6 +76,7 @@ class RobotCodes(Enum):
     MOVING_DRIVE_LIFE_TIME = 0x0323
     AEB_MODE = 0x0325
     VEL_LEVEL = 0x0327
+    ROBOT_CENTER = 0x0329
     DRIVE_MODE = 0x0401
     SET_LIFTER_MOVE = 0x0403
 
@@ -125,6 +126,7 @@ RobotValueTypes = {
     RobotCodes.MOVING_DRIVE_LIFE_TIME: np.uint32,
     RobotCodes.AEB_MODE: np.uint8,
     RobotCodes.VEL_LEVEL: np.uint8,
+    RobotCodes.ROBOT_CENTER: TriOrbDrive3Pose,
     RobotCodes.DRIVE_MODE: np.uint8,
     RobotCodes.SET_LIFTER_MOVE: np.int32,
 
@@ -774,6 +776,15 @@ class robot:
         logger.debug(self.byteList_to_string(self.tx([[RobotCodes.SET_MOTOR_PARAMS, smp]])))
         return self.rx()
 
+    def shift_robot_center(self, x=0.0, y=0.0, towing_wheelbase_mm=None):
+        logger.debug("shift_robot_center")
+        if towing_wheelbase_mm is not None:
+            td3p = RobotValueTypes[RobotCodes.ROBOT_CENTER](0.0, 0.0, towing_wheelbase_mm)
+        else:
+            td3p = RobotValueTypes[RobotCodes.ROBOT_CENTER](x, y, 0.0)
+        query = [[RobotCodes.ROBOT_CENTER, td3p]]
+        logger.debug(self.byteList_to_string(self.tx(query)))
+        return self.rx()
 
 
     def initialize_config(self):

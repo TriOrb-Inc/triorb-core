@@ -134,8 +134,8 @@ class TriOrbBaseState:
 
     emergency: bool = 0
     disable_gamepad: bool = 0
-    flag2: bool = 0
-    flag3: bool = 0
+    qstop: bool = 0
+    free:  bool = 0
     flag4: bool = 0
     flag5: bool = 0
     flag6: bool = 0
@@ -144,8 +144,9 @@ class TriOrbBaseState:
     motor_id: np.uint8 = 0
     def to_bytes(self) -> bytes:
         hb =  self.btn_y<<7 | self.btn_b<<6 | self.btn_a<<5 | self.btn_x<<4 \
-             |self.move<<3 | self.in_pos<<2 | self.s_on<<1 | self.success
-        lb =  self.emergency<<7
+            | self.move<<3 | self.in_pos<<2 | self.s_on<<1 | self.success
+        lb =  self.emergency<<7 | self.disable_gamepad<<6 | self.qstop<<5 | self.free<<4 \
+            | self.flag4<<3 | self.flag5<<2 | self.flag6<<1 | self.flag7
 
         return hb.to_bytes(length=1, byteorder=sys.byteorder) + lb.to_bytes(length=1, byteorder=sys.byteorder) + self.motor_id.to_bytes(length=1, byteorder=sys.byteorder)
 
@@ -180,6 +181,12 @@ class TriOrbBaseState:
 
             self.emergency = (state2 & 0b00000001) > 0
             self.disable_gamepad = (state2 & 0b00000010) > 0
+            self.qstop = (state2 & 0b00000100) > 0
+            self.free  = (state2 & 0b00001000) > 0
+            self.flag4 = (state2 & 0b00010000) > 0
+            self.flag5 = (state2 & 0b00100000) > 0
+            self.flag6 = (state2 & 0b01000000) > 0
+            self.flag7 = (state2 & 0b10000000) > 0
         else:
             self.btn_y  = (state & 0b10000000) > 0
             self.btn_b  = (state & 0b01000000) > 0
@@ -192,6 +199,12 @@ class TriOrbBaseState:
 
             self.emergency = (state2 & 0b10000000) > 0
             self.disable_gamepad = (state2 & 0b01000000) > 0
+            self.qstop = (state2 & 0b00100000) > 0
+            self.free  = (state2 & 0b00010000) > 0
+            self.flag4 = (state2 & 0b00001000) > 0
+            self.flag5 = (state2 & 0b00000100) > 0
+            self.flag6 = (state2 & 0b00000010) > 0
+            self.flag7 = (state2 & 0b00000001) > 0
 
         if self.success==0:
             print("motor ID{} failed to read status".format(self.motor_id))
