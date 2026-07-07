@@ -243,7 +243,7 @@ class robot:
             return struct.pack('<f', val)
         # if isinstance(val, np.uint16):
         #    return val.to_bytes(2, UART_ENDIAN)
-        self._print_error(type(val))
+        logger.error(type(val))
         raise Exception("Unknown type")
 
     @staticmethod
@@ -286,7 +286,7 @@ class robot:
             dtype.from_bytes(val)
             return dtype
         if isinstance(dtype, int):
-            return struct.unpack("<i", val)[0]
+            return int.from_bytes(val, UART_ENDIAN)
         if isinstance(dtype, np.uint32):
             return struct.unpack('<I', val)[0]
         if isinstance(dtype, np.int32):
@@ -299,7 +299,7 @@ class robot:
             return val[0]
         # if isinstance(val, np.uint16):
         #    return val.to_bytes(2, UART_ENDIAN)
-        self._print_error(type(val))
+        logger.error(type(val))
         raise Exception("Unknown type")
 
     @staticmethod
@@ -492,11 +492,16 @@ class robot:
         # irregular value for read mode
         dicts = {p: 0x7FFFFFFF for p in params}
         values = self.write_config(dicts)
+        if not isinstance(values, list):
+            self._print_warning("read_config received no valid response.")
+            return []
 
         for i in range(len(params)):
-            if params[i] == "std-vel":  # 水平速度と回転速度両方が帰ってくるので除く
+            # std-vel returns both horizontal and rotation speed, drop the extra
+            if params[i] == "std-vel" and i + 1 < len(values):  # 水平速度と回転速度両方が帰ってくるので除く
                 values.pop(i)
-            print(params[i], ":", values[i])
+            if i < len(values):
+                print(params[i], ":", values[i])
         return values
 
     # 指定していない値が勝手に変わるのはまずいので初期値無し
@@ -807,9 +812,12 @@ class robot:
         return self.rx()
     
     def close_serial(self):
-        self._uart.close()
-
-    def __del__(self):
-        self.sleep()
         if self._uart is not None:
             self._uart.close()
+            self._uart = None
+
+    def __del__(self):
+        if self._uart is not None:
+            self.sleep()
+            self._uart.close()
+            self._uart = None
